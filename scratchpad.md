@@ -1,5 +1,13 @@
 # Project Scratchpad
 
+## Phase 1 — Data Layer (2026-05-14)
+
+- Local Postgres (PID bound to localhost:5432) intercepts connections before Docker's mapped port. Created `sales` role + `sales` + `sales_test` databases in the local instance. Pass `DATABASE_URL` env var explicitly when running `alembic` CLI.
+- `greenlet` is NOT in `pyproject.toml` but is a required runtime dep of SQLAlchemy 2.0 async on Python 3.14. Added manually with `pip install greenlet`. Should be added to `pyproject.toml` dependencies.
+- SQLAlchemy `Enum` column `server_default`: pass the bare value string e.g. `server_default="draft"` — **not** `server_default="'draft'"`. SQLAlchemy adds its own quoting for PostgreSQL enum types. Double-quoting causes `invalid input value for enum` errors.
+- Alembic autogenerate correctly strips redundant quotes when it sees `"'draft'"` in models and outputs `'draft'` (plain string) in the migration file. The models and migration file now agree on `"draft"` form.
+- `conftest.py` uses a sync `scope="session"` fixture with `asyncio.run()` to create tables before tests start. This avoids event-loop scope conflicts with `pytest-asyncio` 1.x.
+
 ## Phase 0 — Scaffold (2026-05-14)
 
 - Python on this machine is 3.14 (not 3.11 as spec'd); pyproject.toml uses `>=3.11` so it's satisfied. venv lives at `backend/.venv` — use `.venv/bin/pytest` to run tests.

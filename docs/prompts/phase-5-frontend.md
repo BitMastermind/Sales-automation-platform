@@ -20,298 +20,322 @@
 
 ## Phase 5A — Dashboard Layout + Pages
 
-### Prompt
+---
 
+#### ROLE & PERSONA
+
+You are a senior frontend engineer with a strong design eye, specializing in Next.js 14 App Router, TanStack Query, shadcn/ui, and Recharts. You have built production B2B SaaS dashboards that prioritize clarity, hierarchy, and data density over decoration.
+
+---
+
+#### TASK & OBJECTIVE
+
+Build the full frontend shell (sidebar layout, 4 pages, shared components, typed API client) for the AI Sales Outreach Automation platform — achieving zero TypeScript errors and all 5 manual navigation/render checks passing.
+
+---
+
+#### MY SITUATION
+
+Phase 0 initialized Next.js 14 with TypeScript, Tailwind, App Router, `src/` dir, and shadcn/ui (Default style, slate base, CSS variables). TanStack Query, Recharts, and react-dropzone are installed. The FastAPI backend is at `http://localhost:8000`. The layout shell at `/frontend/src/app/layout.tsx` exists as a basic placeholder.
+
+---
+
+#### CONSTRAINTS
+
+- **All data fetching through TanStack Query** — no raw `fetch()` in components.
+- **No class components.** No Redux, no Zustand, no React Context for server data.
+- **Desktop only for MVP** — do not make the layout responsive for mobile.
+- **No `console.log`** anywhere in committed code.
+- **No animations** unless shadcn/ui provides them out of the box.
+- `NEXT_PUBLIC_API_BASE` is the only allowed base URL source — always read from `process.env`.
+
+---
+
+#### AUDIENCE FOR THE OUTPUT
+
+This frontend is used by a solo operator or small sales team who monitors campaign performance, uploads lead CSVs, and checks reply status daily. Clarity and information density matter more than visual complexity. The campaign detail drawer is the most-used view after launch.
+
+---
+
+#### PRIOR ATTEMPTS / WHAT FAILED
+
+- Do not use `response_model=` patterns from the backend in the frontend types — model the `{ data, error, meta }` envelope in `api.ts` and unwrap it before returning to consumers.
+- Do not put Recharts `ResponsiveContainer` inside a flex parent without an explicit `height` — it will render at 0px.
+- Do not use `useRouter().push()` for the sidebar nav — use Next.js `<Link>` for prefetching.
+- Do not add the `QueryClientProvider` directly in `layout.tsx` — it must be in a separate `"use client"` component (`providers.tsx`) to avoid server component conflicts.
+
+---
+
+#### FORMAT
+
+Deliver files in this order:
+1. `/frontend/src/lib/types.ts` — all TypeScript interfaces
+2. `/frontend/src/lib/api.ts` — typed API client with 6 exported functions
+3. `/frontend/src/app/providers.tsx` — `QueryClientProvider` wrapper
+4. `/frontend/src/app/layout.tsx` — sidebar shell + top header
+5. `/frontend/src/app/dashboard/page.tsx` — stat cards + charts
+6. `/frontend/src/app/campaigns/page.tsx` — campaigns table + pagination
+7. `/frontend/src/app/campaigns/[id]/page.tsx` — campaign detail + lead table + slide-out drawer
+8. `/frontend/src/app/settings/page.tsx` — Gmail integration + API key status
+9. `/frontend/src/components/StatCard.tsx`, `StatusBadge.tsx`, `EmptyState.tsx`, `PageHeader.tsx`
+10. Verify steps.
+
+---
+
+#### TONE & EXPERTISE LEVEL
+
+Expert. Next.js 14 App Router, shadcn/ui component API, and TanStack Query patterns assumed known.
+
+---
+
+#### THINKING INSTRUCTION
+
+Before writing `layout.tsx`, decide how to handle the "use client" boundary given that the sidebar needs `usePathname()` for active state. State the boundary decision (which components are server vs. client) before writing any layout code. Before writing the campaign detail page, decide whether the slide-out drawer is managed with URL state or component state — state the choice and why.
+
+---
+
+#### DETAILED SPEC
+
+**`/frontend/src/lib/types.ts`** — mirror backend Pydantic schemas:
+```typescript
+Campaign, CampaignDetail (with stats), Lead, LeadDetail (with emails + replies),
+Email, Reply, Meta, UploadResult
 ```
-Read CLAUDE.md before starting.
 
-Invoke the frontend-design skill before writing any component code.
+**`/frontend/src/lib/api.ts`** — native `fetch`, base URL from `process.env.NEXT_PUBLIC_API_BASE`. Generic request function handles `{ data, error, meta }` envelope. If `error` is non-null: throw with `error.code` and `error.message`.
+```typescript
+fetchCampaigns(page: number, size: number): Promise<{ data: Campaign[], meta: Meta }>
+fetchCampaign(id: string): Promise<{ data: CampaignDetail }>
+patchCampaignStatus(id: string, status: string): Promise<void>
+uploadLeads(campaignId: string, file: File): Promise<UploadResult>
+fetchLeads(campaignId: string, page: number): Promise<{ data: Lead[], meta: Meta }>
+fetchLead(id: string): Promise<{ data: LeadDetail }>
+```
 
-## Context
-Phase 5A of the AI Sales Outreach Automation project.
-The Next.js app is already initialized in /frontend with shadcn/ui, Tailwind, and TanStack Query installed.
-The FastAPI backend is at http://localhost:8000. Set up in .env.local:
-  NEXT_PUBLIC_API_BASE=http://localhost:8000
+**`/frontend/src/app/layout.tsx`** — design direction:
+- Left sidebar, fixed, ~240px wide, `slate-900` background.
+- Logo at top. Nav items with icons: Dashboard, Campaigns, Leads, Templates (link only), Integrations (link only), Settings.
+- Active item: white text + subtle accent highlight.
+- Main content: `slate-50` background, generous padding.
+- Top header bar: breadcrumb left, Gmail connection status pill (green/red) right.
+- Geist font via `next/font/google`.
 
-## Task: Build the shell + 4 pages
+**`/frontend/src/app/dashboard/page.tsx`:**
+- 5 stat cards (responsive grid): Total Leads, Emails Sent, Open Rate, Reply Rate, Meetings Booked. Big number + label + trend indicator. `shadcn/ui Card`.
+- Line chart (60% width): "Emails Sent Per Day", last 30 days. Recharts `LineChart`.
+- Bar chart (40% width): "Reply Rate by Campaign". Recharts `BarChart`, green bars, campaign names truncated to 12 chars.
+- Data: `useQuery(["dashboard-stats"])` → `GET /api/campaigns`, aggregate client-side.
+- Empty state: muted icon + "No campaigns yet. Create your first one." + button.
 
-### Step 0 — API client: /frontend/src/lib/api.ts
-Create a typed API client using the native fetch API (no axios).
-Base URL from process.env.NEXT_PUBLIC_API_BASE.
-Generic request function that handles the { data, error, meta } response shape.
-If error is non-null: throw with error.code and error.message.
+**`/frontend/src/app/campaigns/page.tsx`:**
+- `shadcn/ui Table`. Columns: Name, Status (badge), Leads, Sent, Opened %, Replied %, Created.
+- Status badges: draft=gray, active=green, paused=amber, completed=blue.
+- Row click → `/campaigns/[id]`. Row 3-dot menu: View, Pause/Resume, Archive.
+- Top right: "New Campaign" button (opens creation modal from Phase 5B).
+- Bottom pagination. Loading: 3 skeleton rows. Empty state centered.
 
-Export typed functions:
-  fetchCampaigns(page: number, size: number): Promise<{ data: Campaign[], meta: Meta }>
-  fetchCampaign(id: string): Promise<{ data: CampaignDetail }>
-  patchCampaignStatus(id: string, status: string): Promise<void>
-  uploadLeads(campaignId: string, file: File): Promise<UploadResult>
-  fetchLeads(campaignId: string, page: number): Promise<{ data: Lead[], meta: Meta }>
-  fetchLead(id: string): Promise<{ data: LeadDetail }>
+**`/frontend/src/app/campaigns/[id]/page.tsx`:**
+- Top: campaign name, status badge, 5 stats inline, "Launched [date]", Pause/Resume button.
+- Leads table. Columns: Company, Contact, Email, Status (badge), Last Touched, Actions.
+- Lead status badges: new=gray, researched=blue, email_sent=purple, replied=amber, meeting_booked=green, unsubscribed=slate.
+- Row click → slide-out `shadcn/ui Sheet` (drawer).
+- Drawer: company + contact as title. Timeline email thread. Each email: tag (Outreach/Follow-up), date, subject (bold), body (3-line truncate, expandable). Reply shown below with slate-50 background + classification badge. "Research in progress..." if no emails.
 
-### Step 1 — Types: /frontend/src/lib/types.ts
-Mirror the backend Pydantic schemas:
-  Campaign, CampaignDetail (with stats), Lead, LeadDetail (with emails + replies),
-  Email, Reply, Meta, UploadResult
+**`/frontend/src/app/settings/page.tsx`:**
+- Gmail section: connected (green pill + email) or not connected (red pill) + "Connect Gmail" button.
+- `?gmail=connected` URL param → show `shadcn/ui Toast` success.
+- API Keys section: green/red indicators for configured env vars — no actual key values shown.
 
-### Step 2 — TanStack Query setup: /frontend/src/app/providers.tsx
-Wrap with QueryClientProvider (staleTime: 30s, retry: 1).
-Import in /frontend/src/app/layout.tsx.
+**Shared components:**
+- `StatCard.tsx` — metric card used on dashboard and campaign detail.
+- `StatusBadge.tsx` — colored badge from status string.
+- `EmptyState.tsx` — centered icon + message + optional button.
+- `PageHeader.tsx` — title + optional subtitle + optional action button.
 
-### Step 3 — Layout shell: /frontend/src/app/layout.tsx
-Build the application shell. Design direction:
-  - Left sidebar, fixed, ~240px wide. Dark slate background (slate-900).
-  - Logo / product name at top of sidebar.
-  - Nav items with icons: Dashboard, Campaigns, Leads, Templates (link only, no page yet), 
-    Integrations (link only), Settings.
-  - Active item: white text + subtle accent highlight.
-  - Main content area: white/slate-50 background, generous padding.
-  - Top header bar: breadcrumb (current page name) on left, 
-    Gmail connection status pill (green if connected, red if not) on right.
-  - Use Geist font (next/font/google).
-  - Use shadcn/ui NavigationMenu or just plain nav links — don't over-engineer.
+**Verify:**
+```bash
+cd frontend && npm run dev   # starts on localhost:3000
 
-### Step 4 — /dashboard page: /frontend/src/app/dashboard/page.tsx
+# Manual checks:
+# 1. /dashboard renders stat cards and chart containers
+# 2. /campaigns renders empty state
+# 3. /settings renders "Not Connected" Gmail status
+# 4. /campaigns/[fake-uuid] shows empty state, not a crash
+# 5. Sidebar navigation works without full reload
 
-Top row: 5 stat cards in a responsive grid.
-  Cards: Total Leads, Emails Sent, Open Rate, Reply Rate, Meetings Booked.
-  Each card: big number, label, trend indicator (up/down % vs last week — can be mocked).
-  Use shadcn/ui Card component. Numbers in a large, bold font. Keep it clean.
-
-Charts row:
-  Left chart (60% width): Line chart — "Emails Sent Per Day" (last 30 days).
-    X axis: date. Y axis: count. Use Recharts LineChart.
-  Right chart (40% width): Bar chart — "Reply Rate by Campaign".
-    X axis: campaign name (truncated to 12 chars). Y axis: percentage.
-    Use Recharts BarChart with green bars.
-
-Data: useQuery(["dashboard-stats"]) → GET /api/campaigns (aggregate client-side for MVP).
-
-Empty state: If no campaigns exist, show a centered illustration area (just a large muted icon + 
-  "No campaigns yet. Create your first one." + a "Create Campaign" button).
-
-### Step 5 — /campaigns page: /frontend/src/app/campaigns/page.tsx
-
-Table of campaigns using shadcn/ui Table.
-Columns: Name, Status (badge), Leads, Sent, Opened %, Replied %, Created.
-Status badges: draft=gray, active=green, paused=amber, completed=blue.
-
-Row hover: subtle highlight. Clicking a row → navigate to /campaigns/[id].
-Row actions dropdown (3-dot menu on hover): View, Pause/Resume, Archive.
-Pause = PATCH status to "paused". Resume = PATCH to "active".
-
-Top right: "New Campaign" button (primary, filled). Opens the campaign creation modal.
-Pagination at the bottom: Previous / page numbers / Next.
-Loading state: Skeleton rows (3 of them) while data loads.
-Empty state: "No campaigns yet" with a "New Campaign" button centered.
-
-### Step 6 — /campaigns/[id] page: /frontend/src/app/campaigns/[id]/page.tsx
-
-Top section: Campaign name (heading), status badge, and the 5 stats inline.
-  Also show: "Launched [date]" and an action button (Pause/Resume based on status).
-
-Leads table (same shadcn/ui Table):
-  Columns: Company, Contact, Email, Status (badge), Last Touched, Actions.
-  Lead status badges: new=gray, researched=blue, email_sent=purple, 
-    replied=amber, meeting_booked=green, unsubscribed=slate.
-  Click a row → open a slide-out drawer panel (Radix Sheet or shadcn/ui Sheet).
-
-Slide-out drawer — Email Thread:
-  Shows the company name + contact as the drawer title.
-  Below: a timeline-style email thread. Each email:
-    - "Outreach" or "Follow-up" tag.
-    - Date sent.
-    - Subject in bold.
-    - Body text (truncated to 3 lines, expandable).
-    - If replied: the reply shown beneath with a different background (slate-50).
-    - Reply classification badge (Interested/Not Interested/etc).
-  If no emails yet: "Research in progress..." placeholder.
-
-### Step 7 — /settings page: /frontend/src/app/settings/page.tsx
-
-Two sections:
-
-Gmail Integration:
-  Status: connected (green pill with email address) or not connected (red pill).
-  Button: "Connect Gmail" → fetch /api/auth/gmail, redirect to auth_url.
-  URL param ?gmail=connected → show a success toast (shadcn/ui Toast).
-
-API Keys (read-only display, no editing in MVP):
-  Show which services are configured (non-empty env vars from /api/settings/status).
-  Just green/red indicators — no actual key values.
-
-### Step 8 — shared components: /frontend/src/components/
-
-StatCard.tsx: the metric card used on /dashboard and /campaigns/[id].
-StatusBadge.tsx: colored badge from status string. Used in leads and campaigns tables.
-EmptyState.tsx: reusable centered empty state with icon + message + optional button.
-PageHeader.tsx: page title + optional subtitle + optional action button (top of each page).
-
-## Constraints
-- All data fetching through TanStack Query (useQuery, useMutation). No raw fetch() in components.
-- No class components.
-- No Redux, no Zustand, no Context API for server data.
-- Do NOT make the layout responsive for mobile — desktop only for MVP.
-- Do NOT add animations unless shadcn/ui provides them out of the box.
-- Do NOT use console.log — no logging in frontend committed code.
-
-## Verify
-Run: cd frontend && npm run dev (starts on localhost:3000)
-Manually verify:
-  1. /dashboard renders stat cards and chart containers (charts can be empty — no real data yet is OK)
-  2. /campaigns renders an empty state (no campaigns exist yet)
-  3. /settings renders with "Not Connected" Gmail status
-  4. /campaigns/[id] with a fake UUID in the URL shows a 404-style empty state, not a crash
-  5. Sidebar navigation works — clicking items changes the page without full reload
-
-Run: cd frontend && npx tsc --noEmit
-Expected: Zero type errors.
+cd frontend && npx tsc --noEmit
+# Expected: Zero type errors
 ```
 
 ---
 
 ## Phase 5B — Campaign Creation Flow
 
-### Prompt
+---
 
-```
-Read CLAUDE.md before starting.
+#### ROLE & PERSONA
 
-Invoke /skill brainstorming first — focus on the multi-step form UX and edge cases.
-Then invoke /skill frontend-design for design guidance.
+You are a senior frontend engineer who specializes in multi-step form UX, typed React state machines, and browser-side data processing. You have built campaign creation flows for B2B SaaS tools and know how to design for user trust during high-stakes actions (CSV upload, email launch).
 
-## Context
-Phase 5B: the campaign creation modal.
-This is the most user-facing feature and needs to feel polished.
-No form library — use a typed React state machine.
+---
 
-## Task
+#### TASK & OBJECTIVE
 
-### Step 1 — State machine types: /frontend/src/components/campaigns/create/types.ts
-Define the form state:
-  type Step = 1 | 2 | 3
-  interface CampaignFormData {
-    name: string
-    product: string
-    valueProp: string        // max 100 words — enforce with a counter
-    caseStudy: string
-    tone: "professional_friendly" | "direct" | "warm"
-    file: File | null
-    columnMapping: {
-      company_name: string   // CSV column name that maps to company_name
-      email: string
-      website: string | null
-      contact_name: string | null
-    }
-    parsedRows: ParsedRow[]  // first 20 rows of CSV after mapping
-    validRows: number
-    invalidRows: InvalidRow[]  // { rowIndex, reason }
-  }
+Build a 3-step campaign creation modal (campaign basics → CSV upload + mapping → review + launch) as a typed React state machine without a form library — achieving all 9 manual test cases passing and zero TypeScript errors.
 
-  interface ParsedRow {
+---
+
+#### MY SITUATION
+
+Phase 5A is complete — the campaigns page and shell are built. The "New Campaign" button exists but has no handler yet. The `uploadLeads`, `fetchCampaigns`, and `patchCampaignStatus` API functions exist in `api.ts`. `react-dropzone` is installed. shadcn/ui `Dialog`, `Select`, `Toast` are available.
+
+---
+
+#### CONSTRAINTS
+
+- **CSV parsing is browser-side** — use `FileReader` + manual parsing. Do not send the file to an API just to preview it.
+- **No form library** — the multi-step form is a controlled `useState` state machine.
+- **3 API calls in Step 3 must be sequential**: create campaign → upload leads → activate. On partial failure, do NOT leave a broken campaign in "active" state.
+- **No `console.log`**.
+- Step 2 column mapping must **auto-detect** obvious column name matches (`"email"`, `"Email"`, `"email_address"` etc.) before the user selects.
+- Modal state must **reset to Step 1** when closed mid-way — no leftover state on reopen.
+
+---
+
+#### AUDIENCE FOR THE OUTPUT
+
+This modal is the primary user action — it's used every time a new campaign starts. Any friction, state bugs, or confusing validation messages directly reduces product value. The launch button is a commitment — make the user feel confident before they click it (Step 3 review is the trust-builder).
+
+---
+
+#### PRIOR ATTEMPTS / WHAT FAILED
+
+- Do not use `useReducer` for the form state — `useState` with a typed `CampaignFormData` object is sufficient and easier to read.
+- Do not validate the CSV immediately on file drop — wait until the column mapping is set in Part B before computing `validRows` / `invalidRows`.
+- Do not call all 3 API endpoints in parallel in Step 3 — they are sequential by design (upload requires the campaign ID from step 1).
+- Do not use a third-party CSV library — `FileReader` + `split('\n')` + `split(',')` is sufficient for this MVP.
+
+---
+
+#### FORMAT
+
+Deliver files in this order:
+1. `/frontend/src/components/campaigns/create/types.ts` — `Step`, `CampaignFormData`, `ParsedRow`, `InvalidRow`
+2. `/frontend/src/components/campaigns/CreateCampaignModal.tsx` — Dialog wrapper + step indicator + navigation buttons
+3. `/frontend/src/components/campaigns/create/Step1Basics.tsx` — campaign fields + tone selector
+4. `/frontend/src/components/campaigns/create/Step2Upload.tsx` — dropzone + column mapping + validation preview
+5. `/frontend/src/components/campaigns/create/Step3Review.tsx` — summary + launch sequence
+6. `/frontend/src/app/campaigns/page.tsx` update — wire modal open/close + query invalidation
+7. Verify steps (9 manual test cases).
+
+---
+
+#### TONE & EXPERTISE LEVEL
+
+Expert. shadcn/ui Dialog API, react-dropzone, and TypeScript discriminated unions assumed known.
+
+---
+
+#### THINKING INSTRUCTION
+
+Before writing Step 2, think through the CSV parsing edge cases: headers with trailing whitespace, emails with commas inside quotes, files with Windows line endings (`\r\n`). State which edge cases you will handle and which you will defer to "valid CSV only" for this MVP.
+
+---
+
+#### DETAILED SPEC
+
+**Types:**
+```typescript
+type Step = 1 | 2 | 3
+
+interface CampaignFormData {
+  name: string
+  product: string
+  valueProp: string           // max 100 words — enforce with word counter
+  caseStudy: string
+  tone: "professional_friendly" | "direct" | "warm"
+  file: File | null
+  columnMapping: {
     company_name: string
     email: string
-    website?: string
-    contact_name?: string
-    isValid: boolean
+    website: string | null
+    contact_name: string | null
   }
+  parsedRows: ParsedRow[]     // first 20 rows after mapping
+  validRows: number
+  invalidRows: InvalidRow[]   // { rowIndex, reason }
+}
 
-### Step 2 — Modal wrapper: /frontend/src/components/campaigns/CreateCampaignModal.tsx
-Use shadcn/ui Dialog component.
-State: step (1|2|3), formData (CampaignFormData).
-Render the correct step component based on state.
-Show step indicators at top (3 numbered circles, current one filled).
-"Back" button (except on step 1). "Next" / "Launch" button at bottom right.
-"Next" is disabled when required fields for the current step are empty.
+interface ParsedRow {
+  company_name: string
+  email: string
+  website?: string
+  contact_name?: string
+  isValid: boolean
+}
+```
 
-### Step 3 — Step 1: /frontend/src/components/campaigns/create/Step1Basics.tsx
-Fields:
-  Campaign name: text input (required, max 80 chars).
-  Product/service: text input (required, max 80 chars).
-  Value proposition: textarea (required, soft limit 100 words — show word counter below field,
-    amber warning at 90 words, red at 100+).
-  Case study: textarea (required, placeholder: "Example: We helped LogiCorp reduce manual outreach by 40% in 3 months").
-  Tone: 3-option segmented control (not a dropdown): Professional & Friendly | Direct | Warm.
+**`CreateCampaignModal.tsx`** — shadcn/ui Dialog. State: `step` (1|2|3), `formData`. Step indicators: 3 numbered circles at top (current filled). "Back" except step 1. "Next"/"Launch" bottom right. "Next" disabled when required fields for current step are empty.
 
-Design: Clean form layout. Labels above inputs. Good spacing. No asterisks for required — everything is required.
+**`Step1Basics.tsx`:**
+- Campaign name: text input (max 80 chars, required).
+- Product/service: text input (max 80 chars, required).
+- Value proposition: textarea (required). Word counter below: amber at 90 words, red at 100+.
+- Case study: textarea (placeholder: "Example: We helped LogiCorp reduce manual outreach by 40% in 3 months").
+- Tone: 3-option segmented control (not a dropdown): Professional & Friendly | Direct | Warm.
+- No asterisks for required — all fields are required.
 
-### Step 4 — Step 2: /frontend/src/components/campaigns/create/Step2Upload.tsx
-Part A — File upload:
-  react-dropzone drop zone.
-  Accept .csv only.
-  Visual design: dashed border rectangle, cloud-upload icon, "Drop your CSV here or click to browse".
-  On file selected: show file name + size.
-  "Remove" button to clear and re-upload.
-  Parse the CSV client-side using the browser FileReader API + manual CSV parsing (no csv-parse library).
-  Extract: headers, first 20 rows.
+**`Step2Upload.tsx`:**
 
-Part B — Column mapping (shows after file parsed):
-  For each required field (company_name, email): a Select dropdown showing CSV column names.
-  For each optional field (website, contact_name): same, plus a "Not in CSV" option.
-  Auto-detect: if a CSV column name closely matches ("email", "Email", "email_address" etc.) → pre-select it.
+Part A — react-dropzone (`.csv` only). Dashed border, cloud icon, "Drop your CSV here or click to browse". Shows filename + size on selection. "Remove" button.
 
-Part C — Validation preview table:
-  Show the first 5 parsed+mapped rows in a small table.
-  Columns: company name, email, website, contact.
-  Rows with invalid email: red background, red warning icon.
-  Below table: "X valid rows, Y will be skipped" summary line.
+Part B — Column mapping (after file parsed): required fields `company_name` + `email` → Select from CSV columns. Optional fields `website` + `contact_name` → Select + "Not in CSV" option. Auto-detect: pre-select if column name closely matches.
 
-### Step 5 — Step 3: /frontend/src/components/campaigns/create/Step3Review.tsx
+Part C — Validation preview: first 5 rows in a table. Invalid email rows: red background + warning icon. Below: "X valid rows, Y will be skipped" summary.
+
+**`Step3Review.tsx`:**
 Summary box:
-  Campaign: [name]
-  Product: [product]
-  Tone: [tone]
-  Leads: [validRows] valid, [invalidRows.length] skipped
-  Estimated send time: [validRows * 30 / 60] minutes (at 30s per lead)
-  Gmail status: connected ✓ or ⚠ Not connected (linking to /settings)
+- Campaign: [name], Product: [product], Tone: [tone]
+- Leads: [validRows] valid, [invalidRows.length] skipped
+- Estimated send time: `[validRows * 30 / 60]` minutes
+- Gmail status: connected ✓ or ⚠ Not connected (link to /settings)
 
-"Launch Campaign" button (large, primary color):
-  1. POST /api/campaigns with formData basics → get campaign ID.
-  2. POST /api/leads/upload with file + campaign_id.
-  3. PATCH /api/campaigns/{id}/status to "active".
-  4. On success: close modal, navigate to /campaigns/{id}, show a toast.
-  5. On any error: show an error alert inside the modal (don't close it).
+Launch sequence (sequential, not parallel):
+1. `POST /api/campaigns` → get `campaign.id`
+2. `POST /api/leads/upload` with file + `campaign_id`
+3. `PATCH /api/campaigns/{id}/status` → `"active"`
+4. On success: close modal, navigate to `/campaigns/{id}`, show toast.
+5. On error: show inline error alert inside modal (do NOT close).
+6. Loading: button shows spinner + "Launching...".
 
-Loading state: button shows spinner + "Launching..." during the 3 API calls.
+**Wire into campaigns page:** `useState(false)` for open/close. On successful creation: `invalidateQueries(["campaigns"])`.
 
-### Step 6 — Wire modal into /campaigns page
-In /frontend/src/app/campaigns/page.tsx:
-  Import CreateCampaignModal.
-  Manage open/closed state with useState.
-  "New Campaign" button sets open=true.
-  On successful creation: invalidate the ["campaigns"] query.
+**Verify:**
+```bash
+cd frontend && npm run dev
 
-## Constraints
-- CSV parsing must be browser-side (FileReader) — do NOT send the file to an API just to preview it.
-- The multi-step form is a controlled state machine — no form library.
-- The 3 API calls in Step 3 must happen sequentially (create → upload → activate). Handle partial failure:
-  If upload fails, tell the user but do NOT create a broken campaign in "active" state.
-- Do NOT use console.log.
+# Golden path:
+# 1. Click "New Campaign" → modal opens at Step 1
+# 2. Fill all fields → "Next" becomes enabled
+# 3. Click Next → Step 2
+# 4. Upload 5-row CSV with 1 bad email → preview shows 4 valid / 1 skipped
+# 5. Click Next → Step 3 shows correct counts
+# 6. Click "Launch Campaign" → campaign created, redirect to /campaigns/[id]
 
-## Verify
-Run: cd frontend && npm run dev
+# Edge cases:
+# 7. Advance Step 1 with empty name → Next stays disabled
+# 8. Upload CSV with no "email" column → column mapping shows all CSV headers
+# 9. Close modal mid-way → reopen → Step 1 resets (no leftover state)
 
-Manual test — golden path:
-  1. Click "New Campaign" → modal opens at Step 1.
-  2. Fill in all fields → "Next" becomes enabled.
-  3. Click Next → Step 2 opens.
-  4. Upload a 5-row CSV with one bad email → preview table shows 4 valid / 1 skipped.
-  5. Click Next → Step 3 shows correct counts.
-  6. Click "Launch Campaign" → (backend must be running) campaign created, redirected to /campaigns/[id].
-
-Manual test — edge cases:
-  7. Try to advance Step 1 with empty name → Next stays disabled.
-  8. Upload a CSV with no "email" column → verify the column mapping dropdown shows all CSV headers.
-  9. Close the modal mid-way → reopen it → Step 1 resets (no leftover state).
-
-Run: cd frontend && npx tsc --noEmit
-Expected: Zero type errors.
+cd frontend && npx tsc --noEmit
+# Expected: Zero type errors
 ```
 
 ---
 
 ## After Phase 5
+
 1. Screenshot the dashboard, campaigns list, and campaign creation modal.
-2. Update CLAUDE.md: Phase 5 → ✅ complete.
+2. Update `CLAUDE.md`: Phase 5 → ✅ complete.
 3. Note in `scratchpad.md`: any shadcn/ui component quirks, react-dropzone config notes.
 4. Commit. Open Phase 6 in a new session.

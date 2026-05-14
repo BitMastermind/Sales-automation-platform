@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]",
     "sqlalchemy>=2.0",
+    "greenlet",
     "alembic",
     "asyncpg",
     "pydantic>=2.0",
@@ -30,6 +31,7 @@ dependencies = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["core", "models", "services"]

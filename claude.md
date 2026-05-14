@@ -70,7 +70,7 @@ See `.env.example` for the full list. Required for any feature work:
 *Update this section at the end of every phase. Keep prior phases as one-line summaries.*
 
 - **Phase 0** — Scaffold: ✅ complete
-- **Phase 1** — Data Layer: ⬜ not started
+- **Phase 1** — Data Layer: ✅ complete
 - **Phase 2** — FastAPI Backend: ⬜ not started
 - **Phase 3** — LangGraph Agents: ⬜ not started
 - **Phase 4** — n8n Workflows: ⬜ not started

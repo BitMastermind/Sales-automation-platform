@@ -15,221 +15,164 @@
 
 ---
 
-## Prompt
+#### ROLE & PERSONA
 
+You are a senior automation engineer with deep expertise in n8n workflow design, Gmail API integration, and webhook-driven pipeline architecture. You have built production n8n workflows for B2B sales systems and know how to structure node connections, error handling, and credential references in n8n's JSON export format.
+
+---
+
+#### TASK & OBJECTIVE
+
+Generate three production-ready n8n workflow JSON export files (`campaign_launcher.json`, `gmail_reply_monitor.json`, `followup_scheduler.json`), a credentials reference doc, and an updated README — all importable into n8n with correct node structure, credentials references by name, and error routing on every HTTP node.
+
+---
+
+#### MY SITUATION
+
+Phase 2 is complete — all `/api/internal/*` FastAPI routes are live and responding. n8n is running in Docker on `http://localhost:5678` (external) and `http://n8n:5678` (internal Docker network). The FastAPI backend is at `http://backend:8000` inside Docker. The `/api/internal` routes require header `X-Internal-Token: <INTERNAL_API_TOKEN from env>`. Gmail, Slack, and Google Sheets credentials will be configured in the n8n UI by name — they are not embedded in the JSON.
+
+---
+
+#### CONSTRAINTS
+
+- Do **not** embed credentials, API keys, or tokens in the JSON files — reference by credential name only.
+- All internal API calls must include an `Idempotency-Key` header formatted as `{{ $execution.id }}-<step>-{{ $json.id }}`.
+- **Every HTTP node's error output** must connect to the Slack error notification node.
+- Do **not** use n8n "Code" or "Function" nodes for business logic — only HTTP calls to the backend.
+- The Gmail node must use the `"Gmail Account"` credential by name — not inline OAuth.
+- Webhook paths must follow the pattern `/webhook/<workflow-name>`.
+
+---
+
+#### AUDIENCE FOR THE OUTPUT
+
+These JSON files are imported into n8n by the operator during deployment (Phase 7). They are also reviewed by backend engineers to understand the trigger flow. The JSON must be valid n8n export format — parseable by n8n's import tool — and the node names/paths must match what the FastAPI backend expects.
+
+---
+
+#### PRIOR ATTEMPTS / WHAT FAILED
+
+- Do not use n8n "Function" nodes to parse JSON responses — the HTTP Request node returns parsed JSON automatically.
+- Do not hardcode `INTERNAL_API_TOKEN` in the JSON — use `{{ $env.INTERNAL_API_TOKEN }}` expression.
+- Do not connect the "true" branch of IF nodes to the Slack error node — errors only come from HTTP node error outputs.
+- The Gmail "GetAll" operation returns an array — always feed it into Split In Batches before processing individual messages.
+
+---
+
+#### FORMAT
+
+Deliver files in this order:
+1. `/n8n-workflows/campaign_launcher.json` — complete n8n export JSON
+2. `/n8n-workflows/gmail_reply_monitor.json` — complete n8n export JSON
+3. `/n8n-workflows/followup_scheduler.json` — complete n8n export JSON
+4. `/n8n-workflows/CREDENTIALS.md` — credential setup reference
+5. `/n8n-workflows/README.md` update — append "Setup Order" section
+6. Verify steps (manual n8n import checks).
+
+---
+
+#### TONE & EXPERTISE LEVEL
+
+Expert. n8n JSON node format, expression syntax (`{{ $json.field }}`), and credential-by-name referencing assumed known.
+
+---
+
+#### THINKING INSTRUCTION
+
+Before writing the `campaign_launcher.json`, trace the full data flow: what shape does the Webhook receive? What shape does each subsequent HTTP response have? What field names does the Gmail node receive from the personalization endpoint? Map each `{{ $json.field }}` expression to its source node before writing the JSON. Flag any shape mismatch between what the personalization endpoint returns and what the Gmail node expects.
+
+---
+
+#### DETAILED SPEC
+
+**n8n JSON format notes:**
+- Each workflow: `{ id, name, nodes: [...], connections: {...}, settings: {} }`
+- Node types: `n8n-nodes-base.webhook`, `n8n-nodes-base.scheduleTrigger`, `n8n-nodes-base.httpRequest`, `n8n-nodes-base.gmail`, `n8n-nodes-base.slack`, `n8n-nodes-base.googleSheets`, `n8n-nodes-base.splitInBatches`, `n8n-nodes-base.wait`, `n8n-nodes-base.if`, `n8n-nodes-base.noOp`
+- Credentials referenced by name, never embedded.
+
+---
+
+**Workflow 1 — `campaign_launcher.json`**
+
+Trigger: Webhook, `POST /webhook/campaign-launcher`, responds with "Last Node".
+Input: `{ "campaign_id": "<uuid>" }`
+
+Node sequence:
+1. **Webhook** — receives `campaign_id`
+2. **HTTP Request — Fetch Leads** — `GET http://backend:8000/api/internal/leads?campaign_id={{ $json.body.campaign_id }}&status=new`, header `X-Internal-Token: {{ $env.INTERNAL_API_TOKEN }}`
+3. **Split In Batches** — size: 1, iterates `data` array
+4. **HTTP Request — Trigger Research** — `POST http://backend:8000/api/internal/trigger-research`, body: `{ "lead_id": "{{ $json.id }}" }`, idempotency key: `{{ $execution.id }}-research-{{ $json.id }}`
+5. **HTTP Request — Trigger Personalization** — `POST http://backend:8000/api/internal/trigger-personalization`, body: `{ "lead_id": "{{ $json.lead_id }}" }`, idempotency key: `{{ $execution.id }}-personalization-{{ $json.lead_id }}`
+6. **Gmail Node — Send Email** — credential: "Gmail Account", operation: Send, to: `{{ $json.data.lead_email }}`, subject: `{{ $json.data.subject }}`, message: `{{ $json.data.full_email }}`
+7. **HTTP Request — Mark Sent** — `PATCH http://backend:8000/api/internal/emails/{{ $json.data.email_id }}/sent`, body: `{ "gmail_message_id": "{{ $json.messageId }}" }`
+8. **Wait Node** — 30 seconds (rate limiting between leads)
+9. **Slack Node (error handler)** — on any HTTP node error output, post to `#sales-errors`: `"Campaign launcher error for campaign {{ $('Webhook').item.json.body.campaign_id }}: {{ $json.message }}"`
+
+---
+
+**Workflow 2 — `gmail_reply_monitor.json`**
+
+Trigger: Schedule Trigger, every 15 minutes.
+
+Node sequence:
+1. **Schedule Trigger**
+2. **HTTP Request — Get Sent Email IDs** — `GET http://backend:8000/api/internal/sent-emails/recent?days=14`, returns `{ data: [{ gmail_message_id, email_id }] }`
+3. **Gmail Node — Search Replies** — operation: GetAll, query: `"is:inbox newer_than:15m"`, limit: 50
+4. **IF Node — Filter** — condition: process all inbox messages newer than 15 min (MVP: no threadId filter yet)
+5. **Split In Batches** — size: 1
+6. **Gmail Node — Get Full Message** — operation: Get, message ID: `{{ $json.id }}`
+7. **HTTP Request — POST Reply Webhook** — `POST http://backend:8000/api/webhooks/n8n/reply-received`, body: `{ "gmail_message_id": "{{ $json.id }}", "reply_text": "<decoded body>", "received_at": "{{ $json.internalDate | toDateTime }}" }`
+8. **Slack Node — Notify on Interest** — only if `classified_as` is `"interested"` or `"meeting_request"`, post to `#sales-replies`: `"Reply from {{ $json.from }}: {{ $json.snippet }}"`
+9. **Google Sheets Node — Log Run** — operation: Append, sheet: "Reply Monitor Log", columns: timestamp, messages_checked, replies_found, errors
+
+---
+
+**Workflow 3 — `followup_scheduler.json`**
+
+Trigger: Schedule Trigger, daily at 09:00 local server time.
+
+Node sequence:
+1. **Schedule Trigger**
+2. **HTTP Request — Get Follow-up Candidates** — `GET http://backend:8000/api/internal/leads-needing-followup`, header `X-Internal-Token: {{ $env.INTERNAL_API_TOKEN }}`
+3. **IF Node — Any Leads?** — condition: `{{ $json.data.length }} > 0`. True → continue. False → Sheets log.
+4. **Split In Batches** — size: 1
+5. **HTTP Request — Trigger Follow-up** — `POST http://backend:8000/api/internal/trigger-followup`, body: `{ "lead_id": "{{ $json.lead_id }}" }`
+6. **IF Node — Should Send?** — condition: `{{ $json.data.should_send }} === true`. True → Gmail. False → Sheets log.
+7. **Gmail Node — Send Follow-up** — credential: "Gmail Account", to: `{{ $json.data.lead_email }}`, subject: `{{ $json.data.subject }}`, message: `{{ $json.data.body }}`
+8. **HTTP Request — Mark Follow-up Sent** — `PATCH http://backend:8000/api/internal/emails/{{ $json.data.email_id }}/sent`, body: `{ "gmail_message_id": "{{ $json.messageId }}" }`
+9. **Google Sheets Node — Daily Summary** — Append: `{ date, leads_processed, followups_sent, stopped }`
+
+---
+
+**`/n8n-workflows/CREDENTIALS.md`** — list all 4 credentials needed and where to set them in the n8n UI:
+- **Gmail OAuth2** (name: "Gmail Account") — Settings → Credentials → OAuth2 → Gmail
+- **Slack API** (name: "Slack Account") — Bot token with `chat:write` scope
+- **Google Sheets OAuth2** (name: "Google Sheets Account")
+- **HTTP Header Auth** (name: "FastAPI Internal") — Header: `X-Internal-Token`, Value: from `.env`
+
+**`/n8n-workflows/README.md`** — append "Setup Order" section:
+1. Import `campaign_launcher.json` (start inactive)
+2. Import `gmail_reply_monitor.json` (start inactive)
+3. Import `followup_scheduler.json` (start inactive)
+4. Configure all credentials (see CREDENTIALS.md)
+5. Activate `gmail_reply_monitor` first (safest — read-only)
+6. Activate `followup_scheduler`
+7. Test `campaign_launcher` manually before activating
+
+**Verify:**
 ```
-Read CLAUDE.md before starting.
-
-## Context
-Phase 4: generate the three n8n workflow JSON export files and their documentation.
-n8n is running locally on http://localhost:5678 (via Docker Compose from Phase 0).
-The FastAPI backend is on http://backend:8000 inside Docker, or http://localhost:8000 from outside.
-Internal API calls require header: X-Internal-Token: <value from env INTERNAL_API_TOKEN>
-
-## What you need to know about n8n JSON format
-- Each workflow is an object with: id, name, nodes (array), connections (object), settings.
-- Node types used here: n8n-nodes-base.webhook, n8n-nodes-base.scheduleTrigger,
-  n8n-nodes-base.httpRequest, n8n-nodes-base.gmail, n8n-nodes-base.slack,
-  n8n-nodes-base.googleSheets, n8n-nodes-base.splitInBatches, n8n-nodes-base.wait,
-  n8n-nodes-base.if, n8n-nodes-base.noOp
-- Credentials are referenced by name (set in n8n UI), not embedded in JSON.
-- Webhook paths should be: /webhook/<workflow-name>
-
-## Task 1 — campaign_launcher.json
-
-Create /n8n-workflows/campaign_launcher.json
-
-Trigger: Webhook node
-  - HTTP Method: POST
-  - Path: /campaign-launcher
-  - Responds with: "Last Node" (so it returns the final HTTP response)
-
-Nodes in order:
-1. Webhook (trigger)
-   Input: { "campaign_id": "<uuid>" }
-
-2. HTTP Request — Fetch Leads
-   Method: GET
-   URL: http://backend:8000/api/internal/leads?campaign_id={{ $json.body.campaign_id }}&status=new
-   Headers: { "X-Internal-Token": "{{ $env.INTERNAL_API_TOKEN }}" }
-   Output: { data: [{ id, company_name, email }] }
-
-3. Split In Batches
-   Batch size: 1
-   Iterates over data array from step 2.
-
-4. HTTP Request — Trigger Research
-   Method: POST
-   URL: http://backend:8000/api/internal/trigger-research
-   Headers: { "X-Internal-Token": "...", "Idempotency-Key": "{{ $execution.id }}-research-{{ $json.id }}" }
-   Body: { "lead_id": "{{ $json.id }}" }
-
-5. HTTP Request — Trigger Personalization
-   Method: POST
-   URL: http://backend:8000/api/internal/trigger-personalization
-   Headers: { "X-Internal-Token": "...", "Idempotency-Key": "{{ $execution.id }}-personalization-{{ $json.lead_id }}" }
-   Body: { "lead_id": "{{ $json.lead_id }}" }
-
-6. Gmail Node — Send Email
-   Credentials: Gmail OAuth2 (named "Gmail Account" in n8n)
-   Operation: Send
-   To: {{ $json.data.lead_email }}
-   Subject: {{ $json.data.subject }}
-   Message: {{ $json.data.full_email }}
-   (The personalization endpoint returns { data: { lead_email, subject, full_email, email_id } })
-
-7. HTTP Request — Mark Sent
-   Method: PATCH
-   URL: http://backend:8000/api/internal/emails/{{ $json.data.email_id }}/sent
-   Headers: { "X-Internal-Token": "..." }
-   Body: { "gmail_message_id": "{{ $json.messageId }}" }
-
-8. Wait Node
-   Amount: 30 seconds
-   (Rate limit between leads)
-
-Error handling: On any HTTP node failure → connect error output to a Slack notification node.
-Slack node (on error): Post to channel #sales-errors with message:
-  "Campaign launcher error for campaign {{ $('Webhook').item.json.body.campaign_id }}: {{ $json.message }}"
-
-## Task 2 — gmail_reply_monitor.json
-
-Create /n8n-workflows/gmail_reply_monitor.json
-
-Trigger: Schedule Trigger
-  Rule: Every 15 minutes
-
-Nodes in order:
-1. Schedule Trigger
-
-2. HTTP Request — Get Sent Email IDs
-   Method: GET
-   URL: http://backend:8000/api/internal/sent-emails/recent?days=14
-   Headers: { "X-Internal-Token": "..." }
-   Output: { data: [{ gmail_message_id, email_id }] }
-
-3. Gmail Node — Search Replies
-   Operation: GetAll
-   Filters: Query: "is:inbox newer_than:15m"
-   Limit: 50
-   (Returns array of Gmail message objects with: id, threadId, snippet, internalDate)
-
-4. IF Node — Filter: only replies to our sent emails
-   Condition: The Gmail threadId exists in a thread we track.
-   (For MVP, process all inbox messages newer than 15min — Phase 6 can tighten this)
-
-5. For each new message (via Split In Batches, size: 1):
-   a. Gmail Node — Get Full Message
-      Operation: Get
-      Message ID: {{ $json.id }}
-      Output includes: payload.body.data (base64 body)
-
-   b. HTTP Request — POST to webhook
-      Method: POST
-      URL: http://backend:8000/api/webhooks/n8n/reply-received
-      Body: {
-        "gmail_message_id": "{{ $json.id }}",
-        "reply_text": "<decoded body>",
-        "received_at": "{{ $json.internalDate | toDateTime }}"
-      }
-
-   c. Slack Node — Notify (only if backend returned 200 and classified_as is "interested" or "meeting_request")
-      Channel: #sales-replies
-      Message: "Reply from {{ $json.from }}: {{ $json.snippet }}"
-
-6. Google Sheets Node — Log Run
-   Operation: Append
-   Sheet: "Reply Monitor Log"
-   Columns: timestamp, messages_checked, replies_found, errors
-
-## Task 3 — followup_scheduler.json
-
-Create /n8n-workflows/followup_scheduler.json
-
-Trigger: Schedule Trigger
-  Rule: Daily at 09:00 (local server time)
-
-Nodes in order:
-1. Schedule Trigger
-
-2. HTTP Request — Get Follow-up Candidates
-   Method: GET
-   URL: http://backend:8000/api/internal/leads-needing-followup
-   Headers: { "X-Internal-Token": "..." }
-   Output: { data: [{ lead_id, days_since_sent }] }
-
-3. IF Node — Any leads to process?
-   Condition: {{ $json.data.length }} > 0
-   True branch → continue
-   False branch → Google Sheets log (no-op)
-
-4. Split In Batches (size: 1) — iterate over leads
-
-5. HTTP Request — Trigger Follow-up
-   Method: POST
-   URL: http://backend:8000/api/internal/trigger-followup
-   Headers: { "X-Internal-Token": "..." }
-   Body: { "lead_id": "{{ $json.lead_id }}" }
-
-6. IF Node — Should Send?
-   Condition: {{ $json.data.should_send }} === true
-   True → Gmail Send node
-   False → Sheets log only
-
-7. Gmail Node — Send Follow-up (true branch)
-   Same credential as campaign_launcher.
-   To: {{ $json.data.lead_email }}
-   Subject: {{ $json.data.subject }}
-   Message: {{ $json.data.body }}
-
-8. HTTP Request — Mark Follow-up Sent (after Gmail)
-   Method: PATCH
-   URL: http://backend:8000/api/internal/emails/{{ $json.data.email_id }}/sent
-   Body: { "gmail_message_id": "{{ $json.messageId }}" }
-
-9. Google Sheets Node — Daily Summary
-   Append row: { date, leads_processed, followups_sent, stopped }
-
-## Task 4 — n8n credentials reference
-
-Create /n8n-workflows/CREDENTIALS.md:
-  List all credentials needed and where to set them in the n8n UI:
-  - Gmail OAuth2 (name: "Gmail Account") — Settings → Credentials → OAuth2 → Gmail
-  - Slack API (name: "Slack Account") — Bot token with chat:write scope
-  - Google Sheets OAuth2 (name: "Google Sheets Account")
-  - HTTP Header Auth (name: "FastAPI Internal") — Header: X-Internal-Token, Value: from .env
-
-## Task 5 — Update /n8n-workflows/README.md
-Append a "Setup Order" section:
-  1. Import campaign_launcher.json (start inactive)
-  2. Import gmail_reply_monitor.json (start inactive)
-  3. Import followup_scheduler.json (start inactive)
-  4. Configure all credentials (see CREDENTIALS.md)
-  5. Activate gmail_reply_monitor first (safest — read-only)
-  6. Activate followup_scheduler
-  7. Test campaign_launcher manually before activating
-
-## Constraints
-- Do NOT embed credentials, API keys, or tokens in the JSON files.
-- All internal API calls must include the Idempotency-Key header.
-- Error outputs on HTTP nodes must connect to the Slack error notification node.
-- Do NOT use n8n "Code" or "Function" nodes for business logic — only HTTP calls.
-- The Gmail node must use the "Gmail Account" credential by name (not inline OAuth).
-
-## Verify
-1. Run: make dev (boots n8n at localhost:5678)
-2. Import campaign_launcher.json via n8n UI → confirm it parses and nodes appear.
-3. Import gmail_reply_monitor.json → confirm it parses.
-4. Import followup_scheduler.json → confirm it parses.
-5. In n8n, execute campaign_launcher manually with body: { "campaign_id": "00000000-0000-0000-0000-000000000001" }
-   Expected: HTTP request to backend 404 (no such campaign) — workflow runs to error handler without crashing.
-
-Update CLAUDE.md: Phase 4 → ✅ complete.
+1. make dev  (boots n8n at localhost:5678)
+2. Import campaign_launcher.json via n8n UI → confirm nodes appear
+3. Import gmail_reply_monitor.json → confirm it parses
+4. Import followup_scheduler.json → confirm it parses
+5. Execute campaign_launcher manually: body { "campaign_id": "00000000-0000-0000-0000-000000000001" }
+   Expected: HTTP 404 from backend (no such campaign) — workflow runs to error handler without crashing
 ```
 
 ---
 
 ## After Phase 4
+
 1. All three workflows import cleanly into n8n.
 2. Note in `scratchpad.md`: any n8n JSON schema quirks, credentials that needed re-naming.
 3. Commit the JSON files.

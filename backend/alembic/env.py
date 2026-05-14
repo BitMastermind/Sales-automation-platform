@@ -20,6 +20,7 @@ if config.config_file_name is not None:
 # target_metadata populated in Phase 1 when ORM models exist
 try:
     from core.database import Base
+    import models  # noqa: F401 — registers all ORM models with Base.metadata
     target_metadata = Base.metadata
 except Exception:
     target_metadata = None  # noqa: F841
