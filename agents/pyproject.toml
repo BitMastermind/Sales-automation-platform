@@ -1,5 +1,8 @@
+# Uses setuptools (not hatchling) because hatchling's editable install
+# cannot map an arbitrary import namespace (agents.*) to the project root
+# when pyproject.toml lives inside the agents/ subdirectory.
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,11 +21,9 @@ dependencies = [
 ]
 
 [tool.setuptools]
-# Map the importable 'agents' package to this directory (the project root).
-# Editable installs create a finder that maps 'agents' -> agents/ project root,
-# so `from agents.research_agent import ...` resolves correctly.
+# setuptools package-dir: maps the importable 'agents.*' namespace to this
+# directory (the project root inside agents/), so `from agents.research_agent
+# import ...` resolves for both editable and wheel installs.
 packages = ["agents", "agents.prompts", "agents.scripts"]
 package-dir = {"agents" = ".", "agents.prompts" = "prompts", "agents.scripts" = "scripts"}
 
-[tool.uv.sources]
-sales-automation-agents = { path = "../agents", editable = true }
