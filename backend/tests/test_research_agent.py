@@ -28,3 +28,34 @@ async def test_agent_output_error_handler_returns_422_envelope():
     assert body["error"]["details"]["agent"] == "research"
     assert body["error"]["details"]["violations"] == ["x"]
     assert body["meta"] == {}
+
+
+def test_research_output_validates_minimum_pain_points():
+    from pydantic import ValidationError
+    import pytest as _pt
+    from agents.research_agent import ResearchOutput
+
+    with _pt.raises(ValidationError):
+        ResearchOutput(
+            industry="SaaS",
+            company_size="50-200",
+            pain_points=["only one"],  # min_length=2
+            recent_news=[],
+            tech_stack=[],
+            research_summary="Acme is a SaaS company.",
+        )
+
+
+def test_research_output_round_trips_dict():
+    from agents.research_agent import ResearchOutput
+
+    payload = {
+        "industry": "Logistics SaaS",
+        "company_size": "50-200",
+        "pain_points": ["manual ops", "outbound scaling"],
+        "recent_news": ["expanded to Europe Q1"],
+        "tech_stack": ["Salesforce"],
+        "research_summary": "ABC Corp is a logistics SaaS firm expanding into Europe.",
+    }
+    obj = ResearchOutput(**payload)
+    assert obj.model_dump() == payload
