@@ -18,6 +18,19 @@
 - Fernet key generation command added to `.env.example`: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
 - Exception handlers registered in `main.py` via `register_exception_handlers(app)` — returns standard `{"data": null, "error": {...}, "meta": {}}` envelope shape.
 
+## Phase 3A — Research Agent (2026-05-16)
+
+- LangGraph 1.x: `add_conditional_edges` with explicit dict mapping (`{"end": END, "synthesize": "synthesize"}`) — string keys returned by router function map to node names. Worked first try.
+- `agents/` made an installable package via `agents/pyproject.toml` + path dep in `backend/pyproject.toml`. Switched from hatchling to setuptools because hatchling's editable install cannot map an arbitrary import namespace (`agents.*`) to the project root when `pyproject.toml` lives inside the agents/ subdirectory.
+- `refine_count` increment lives in `synthesize` (on re-entry when `quality_ok=False AND synthesized is not None`), not in `check_quality`. This makes the budget arithmetic work: 1 initial + 2 refines = 3 Claude calls before the routing edge terminates the graph.
+- Pydantic validation deferred to entry point (after `_graph.ainvoke`) — keeps schema errors (raise) cleanly separated from quality failures (loop).
+- LLM mocking via `patch("agents.research_agent._call_claude_synthesize", new=AsyncMock(...))` rather than respx on the SDK — readable, stable. Wire-format coverage handled by the smoke script.
+- `_route_after_quality` is a pure function; LangGraph re-evaluates it after each `check_quality` invocation. No state mutation tricks needed.
+- Tavily SDK `AsyncTavilyClient.search` is awaitable and returns `{"results": [...], "query": ..., "answer": ...}`. Patched via `unittest.mock.patch` at the class level.
+- Vector upsert lives BEHIND the DB commit in `trigger_research` — Qdrant outages don't lose research data. Deviation from the original spec text (intentional).
+- `ruff` is not installed in `backend/.venv`. Add `ruff` to dev dependencies for linting in future sessions.
+- Smoke script (`agents/scripts/smoke.py`) requires a `.env` file with real `TAVILY_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` to run. The `.env` file was absent during Phase 3A; run `cp .env.example .env` and fill in real keys before verifying smoke output.
+
 ## Phase 0 — Scaffold (2026-05-14)
 
 - Python on this machine is 3.14 (not 3.11 as spec'd); pyproject.toml uses `>=3.11` so it's satisfied. venv lives at `backend/.venv` — use `.venv/bin/pytest` to run tests.
