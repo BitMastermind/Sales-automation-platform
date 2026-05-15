@@ -4,6 +4,7 @@ This is the only place backend code touches the Research Agent. The agent itself
 lives in `agents/research_agent.py` and stays free of DB and HTTP concerns.
 """
 import logging
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ from models.lead import Lead
 logger = logging.getLogger(__name__)
 
 
-async def trigger_research(lead_id: UUID, db: AsyncSession) -> dict:
+async def trigger_research(lead_id: UUID, db: AsyncSession) -> dict[str, Any]:
     lead = await db.get(Lead, lead_id)
     if lead is None:
         raise LookupError(f"Lead {lead_id} not found")
