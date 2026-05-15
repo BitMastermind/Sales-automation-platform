@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agents_interface.personalization import trigger_personalization as trigger_personalization_iface
 from agents_interface.research import trigger_research as trigger_research_iface
 from core.config import settings
 from core.database import get_db
@@ -41,9 +42,14 @@ async def trigger_research(body: LeadTriggerBody, db: AsyncSession = Depends(get
 
 
 @router.post("/trigger-personalization", dependencies=[Depends(_require_token)])
-async def trigger_personalization(body: LeadTriggerBody):
-    logger.info("Personalization trigger queued for lead %s", body.lead_id)
-    return ok({"queued": True, "lead_id": str(body.lead_id)})
+async def trigger_personalization(body: LeadTriggerBody, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await trigger_personalization_iface(body.lead_id, db)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return ok(result)
 
 
 @router.post("/trigger-followup", dependencies=[Depends(_require_token)])

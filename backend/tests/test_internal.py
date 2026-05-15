@@ -76,13 +76,49 @@ async def test_trigger_research_agent_output_error_returns_422(async_client: Asy
 
 
 async def test_trigger_personalization_valid_token(async_client: AsyncClient):
-    resp = await async_client.post(
-        "/api/internal/trigger-personalization",
-        json={"lead_id": ANY_LEAD_ID},
-        headers=VALID_HEADERS,
-    )
+    canned = {
+        "subject": "Question about expansion",
+        "opening_line": "Saw your Europe push — impressive.",
+        "body": "We help teams like yours scale outbound.",
+        "cta": "Open to a quick chat?",
+        "full_email": "Question about expansion\n\nSaw your Europe push...",
+    }
+    with patch("api.internal.trigger_personalization_iface",
+               new=AsyncMock(return_value=canned)):
+        resp = await async_client.post(
+            "/api/internal/trigger-personalization",
+            json={"lead_id": ANY_LEAD_ID},
+            headers=VALID_HEADERS,
+        )
+
     assert resp.status_code == 200
-    assert resp.json()["data"]["queued"] is True
+    body = resp.json()
+    assert body["data"] == canned
+    assert body["error"] is None
+
+
+async def test_trigger_personalization_returns_404_when_lead_missing(async_client: AsyncClient):
+    with patch("api.internal.trigger_personalization_iface",
+               new=AsyncMock(side_effect=LookupError("Lead not found"))):
+        resp = await async_client.post(
+            "/api/internal/trigger-personalization",
+            json={"lead_id": ANY_LEAD_ID},
+            headers=VALID_HEADERS,
+        )
+
+    assert resp.status_code == 404
+
+
+async def test_trigger_personalization_returns_400_when_not_researched(async_client: AsyncClient):
+    with patch("api.internal.trigger_personalization_iface",
+               new=AsyncMock(side_effect=ValueError("Lead must be researched first"))):
+        resp = await async_client.post(
+            "/api/internal/trigger-personalization",
+            json={"lead_id": ANY_LEAD_ID},
+            headers=VALID_HEADERS,
+        )
+
+    assert resp.status_code == 400
 
 
 async def test_trigger_followup_valid_token(async_client: AsyncClient):

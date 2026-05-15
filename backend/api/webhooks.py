@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -8,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agents_interface.classifier import classify_reply
 from core.database import get_db
 from core.response import err, ok
 from models.email import Email
@@ -29,10 +29,6 @@ class EmailOpenedBody(BaseModel):
     opened_at: datetime
 
 
-async def _classify_reply(text: str) -> str:
-    raise NotImplementedError("Reply classifier not yet implemented (Phase 3)")
-
-
 @router.post("/n8n/reply-received")
 async def reply_received(body: ReplyReceivedBody, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -45,28 +41,20 @@ async def reply_received(body: ReplyReceivedBody, db: AsyncSession = Depends(get
     reply = Reply(
         email_id=email.id,
         content=body.reply_text,
-        classified_as="unknown",
         received_at=body.received_at,
     )
     db.add(reply)
     await db.flush()
 
-    try:
-        classified_as = await _classify_reply(body.reply_text)
-    except NotImplementedError:
-        classified_as = "unknown"
+    email.replied_at = datetime.now(timezone.utc)
+    lead = await db.get(Lead, email.lead_id)
+    if lead is not None:
+        lead.status = "replied"
 
-    await db.execute(
-        update(Email)
-        .where(Email.id == email.id)
-        .values(replied_at=datetime.now(timezone.utc))
-    )
-    await db.execute(
-        update(Lead).where(Lead.id == email.lead_id).values(status="replied")
-    )
+    classification = await classify_reply(reply.id, db)
     await db.commit()
 
-    return ok({"reply_id": str(reply.id), "classified_as": classified_as})
+    return ok({"reply_id": str(reply.id), "classified_as": classification.intent})
 
 
 @router.post("/n8n/email-opened")
