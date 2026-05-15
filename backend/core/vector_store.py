@@ -1,5 +1,6 @@
-import uuid
 import logging
+import uuid
+from uuid import UUID
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient
@@ -37,7 +38,7 @@ class VectorStoreClient:
                 logger.info("Created collection %s", name)
 
     async def upsert_company_research(
-        self, lead_id: str, summary_text: str, metadata: dict[str, Any]
+        self, lead_id: UUID, summary_text: str, metadata: dict[str, Any]
     ) -> None:
         await self._ensure_initialized()
         vector = await embed_text(summary_text)

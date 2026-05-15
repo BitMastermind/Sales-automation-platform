@@ -23,7 +23,7 @@ async def trigger_research(lead_id: UUID, db: AsyncSession) -> dict[str, Any]:
 
     result = await run_research_agent({
         "company_name": lead.company_name,
-        "website": lead.website,
+        "website": lead.website or "",
     })
 
     lead.research_data = result
