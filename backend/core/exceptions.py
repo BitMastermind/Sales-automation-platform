@@ -48,7 +48,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                 "data": None,
                 "error": {
                     "code": "AGENT_OUTPUT_ERROR",
-                    "message": str(exc),
+                    "message": f"{exc.agent} agent output failed validation",
                     "details": {"agent": exc.agent, "violations": exc.violations},
                 },
                 "meta": {},

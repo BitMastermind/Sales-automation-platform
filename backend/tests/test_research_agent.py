@@ -1,28 +1,30 @@
 """Tests for the Research Agent (Phase 3A)."""
-from httpx import AsyncClient
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+
+from core.exceptions import AgentOutputError, register_exception_handlers
 
 
-async def test_agent_output_error_handler_returns_422_envelope(async_client: AsyncClient):
+async def test_agent_output_error_handler_returns_422_envelope():
     """The AgentOutputError handler returns a 422 with the standard envelope.
 
-    We trigger it via a temporary route appended in the test (no real agent yet).
+    Uses a self-contained FastAPI app so the global app singleton is never mutated.
     """
-    from main import app
-    from core.exceptions import AgentOutputError
+    test_app = FastAPI()
+    register_exception_handlers(test_app)
 
-    @app.get("/__test_agent_error__")
+    @test_app.get("/__raise__")
     async def _raise():
         raise AgentOutputError(agent="research", violations=["x"])
 
-    try:
-        resp = await async_client.get("/__test_agent_error__")
-        assert resp.status_code == 422
-        body = resp.json()
-        assert body["data"] is None
-        assert body["error"]["code"] == "AGENT_OUTPUT_ERROR"
-        assert body["error"]["details"]["agent"] == "research"
-        assert body["error"]["details"]["violations"] == ["x"]
-        assert body["meta"] == {}
-    finally:
-        # Remove the test-only route so it doesn't leak into other tests
-        app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != "/__test_agent_error__"]
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+        resp = await client.get("/__raise__")
+
+    assert resp.status_code == 422
+    body = resp.json()
+    assert body["data"] is None
+    assert body["error"]["code"] == "AGENT_OUTPUT_ERROR"
+    assert "research" in body["error"]["message"]
+    assert body["error"]["details"]["agent"] == "research"
+    assert body["error"]["details"]["violations"] == ["x"]
+    assert body["meta"] == {}
