@@ -417,3 +417,28 @@ async def test_max_retries_raises_agent_output_error():
 
     assert "quality_check_failed_after_2_refines" in exc_info.value.violations
     assert synth_mock.await_count == 3  # initial + 2 refines
+    # short_output summary is < 20 words, so auto-fail gate triggers — LLM quality never called
+    assert quality_mock.await_count == 0
+
+
+async def test_schema_validation_failure_raises_agent_output_error():
+    from agents.research_agent import run_research_agent
+    from core.exceptions import AgentOutputError
+
+    # pain_points with only 1 item violates ResearchOutput min_length=2 constraint
+    bad_output = {**VALID_OUTPUT, "pain_points": ["only one"]}
+
+    with respx.mock(base_url="https://acme.example") as mocker, \
+         patch("agents.research_agent.AsyncTavilyClient") as tav, \
+         patch("agents.research_agent._call_claude_synthesize",
+               new=AsyncMock(return_value=bad_output)), \
+         patch("agents.research_agent._call_openai_quality",
+               new=AsyncMock(return_value={"passes": True, "reason": "ok"})):
+        mocker.get("/").mock(return_value=Response(200, text="<p>ok</p>"))
+        tav.return_value.search = AsyncMock(return_value={"results": []})
+
+        with pytest.raises(AgentOutputError):
+            await run_research_agent({
+                "company_name": "Acme",
+                "website": "https://acme.example/",
+            })
