@@ -12,18 +12,20 @@ errors separate from quality failures.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from typing import Any, TypedDict
 
 import anthropic
 import httpx
+import openai
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
 from tavily import AsyncTavilyClient
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from agents.prompts.research_prompts import SYNTHESIS_SYSTEM
+from agents.prompts.research_prompts import QUALITY_CHECK_SYSTEM, SYNTHESIS_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +197,39 @@ async def synthesize(state: ResearchState) -> dict[str, Any]:
     user_message = _build_synthesize_user_message(state, refine_context)
     raw_output = await _call_claude_synthesize(user_message, refine_context=refine_context)
     return {"synthesized": raw_output, "refine_count": refine_count}
+
+
+@retry(
+    retry=retry_if_exception_type((
+        openai.APIConnectionError,
+        openai.RateLimitError,
+        openai.APITimeoutError,
+    )),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+async def _call_openai_quality(summary: str) -> dict[str, Any]:
+    from core.config import settings
+    client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+    resp = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": QUALITY_CHECK_SYSTEM},
+            {"role": "user", "content": f"Summary:\n{summary}\n\nReturn JSON {{\"passes\": bool, \"reason\": str}}."},
+        ],
+    )
+    return json.loads(resp.choices[0].message.content)
+
+
+async def check_quality(state: ResearchState) -> dict[str, Any]:
+    summary = (state["synthesized"] or {}).get("research_summary", "")
+    if len(summary.split()) < 20:
+        return {"quality_ok": False}
+
+    result = await _call_openai_quality(summary)
+    return {"quality_ok": bool(result.get("passes"))}
 
 
 async def run_research_agent(lead: dict[str, Any]) -> dict[str, Any]:

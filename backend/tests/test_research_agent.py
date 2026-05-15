@@ -241,3 +241,58 @@ async def test_synthesize_increments_refine_count_on_re_entry():
 
     assert out["refine_count"] == 1
     assert out["synthesized"] == fake_output
+
+
+async def test_check_quality_short_summary_auto_fails_without_llm_call():
+    from agents.research_agent import check_quality
+
+    state = {
+        "lead": {}, "raw_website_text": "", "news_results": [],
+        "tech_stack_hints": [],
+        "synthesized": {"research_summary": "Five word summary only here."},  # 5 words
+        "quality_ok": False, "refine_count": 0,
+    }
+    # Patch the LLM helper so we can assert it was NOT called
+    with patch("agents.research_agent._call_openai_quality",
+               new=AsyncMock()) as mock_helper:
+        out = await check_quality(state)
+
+    assert out == {"quality_ok": False}
+    assert mock_helper.await_count == 0
+
+
+async def test_check_quality_passes_when_llm_returns_passes_true():
+    from agents.research_agent import check_quality
+
+    long_summary = (
+        "Acme Corp is a logistics SaaS firm headquartered in Denver. "
+        "They expanded into the EU in Q1 2025 and recently hired a VP of Sales."
+    )
+    state = {
+        "lead": {}, "raw_website_text": "", "news_results": [],
+        "tech_stack_hints": [],
+        "synthesized": {"research_summary": long_summary},
+        "quality_ok": False, "refine_count": 0,
+    }
+    with patch("agents.research_agent._call_openai_quality",
+               new=AsyncMock(return_value={"passes": True, "reason": "named city + dated event"})):
+        out = await check_quality(state)
+
+    assert out == {"quality_ok": True}
+
+
+async def test_check_quality_fails_when_llm_returns_passes_false():
+    from agents.research_agent import check_quality
+
+    long_summary = " ".join(["word"] * 25)  # 25 words but vague
+    state = {
+        "lead": {}, "raw_website_text": "", "news_results": [],
+        "tech_stack_hints": [],
+        "synthesized": {"research_summary": long_summary},
+        "quality_ok": False, "refine_count": 0,
+    }
+    with patch("agents.research_agent._call_openai_quality",
+               new=AsyncMock(return_value={"passes": False, "reason": "no specific fact"})):
+        out = await check_quality(state)
+
+    assert out == {"quality_ok": False}
