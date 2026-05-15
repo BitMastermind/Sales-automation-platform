@@ -7,11 +7,13 @@ from api.emails import router as emails_router
 from api.internal import router as internal_router
 from api.leads import router as leads_router
 from api.webhooks import router as webhooks_router
+from core.exceptions import register_exception_handlers
 from core.logging import setup_logging
 
 setup_logging()
 
 app = FastAPI(title="Sales Automation API", version="0.1.0")
+register_exception_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,

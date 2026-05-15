@@ -8,6 +8,16 @@
 - Alembic autogenerate correctly strips redundant quotes when it sees `"'draft'"` in models and outputs `'draft'` (plain string) in the migration file. The models and migration file now agree on `"draft"` form.
 - `conftest.py` uses a sync `scope="session"` fixture with `asyncio.run()` to create tables before tests start. This avoids event-loop scope conflicts with `pytest-asyncio` 1.x.
 
+## Phase 2B — Gmail OAuth + GmailService (2026-05-15)
+
+- `google-api-python-client` uses `httplib2` for API calls (not httpx) — not mockable with `respx`. Mocked at the `build()` level using `unittest.mock.patch("services.gmail_service.build")` instead.
+- Token exchange AND refresh both use `httpx.AsyncClient` (manual grant calls), not `google-auth-oauthlib` Flow — this keeps them mockable with `respx` and avoids the synchronous `run_local_server()` path.
+- Token refresh race condition: `asyncio.Lock` per `GmailService` instance is sufficient for single-worker MVP. Multi-worker would need Redis or `SELECT FOR UPDATE`.
+- `db_session` fixture in conftest doesn't truncate between tests (unlike `async_client`). Tests that write DB rows in one test and need isolation in the next must add their own `DELETE` autouse fixture — see `test_gmail_service.py::clear_oauth_tokens`.
+- `scalar_one_or_none()` throws `MultipleResultsFound` if two gmail tokens exist. Changed to `.scalars().first()` for resilience (single-user MVP can only have one, but defensive coding matters).
+- Fernet key generation command added to `.env.example`: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+- Exception handlers registered in `main.py` via `register_exception_handlers(app)` — returns standard `{"data": null, "error": {...}, "meta": {}}` envelope shape.
+
 ## Phase 0 — Scaffold (2026-05-14)
 
 - Python on this machine is 3.14 (not 3.11 as spec'd); pyproject.toml uses `>=3.11` so it's satisfied. venv lives at `backend/.venv` — use `.venv/bin/pytest` to run tests.
