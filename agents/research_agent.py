@@ -11,6 +11,7 @@ errors separate from quality failures.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, TypedDict
 
 from pydantic import BaseModel, Field
@@ -33,6 +34,25 @@ class ResearchOutput(BaseModel):
     recent_news: list[str] = Field(max_length=3)
     tech_stack: list[str]
     research_summary: str
+
+
+TECH_KEYWORDS = [
+    "Salesforce", "HubSpot", "Outreach", "Gong", "Slack",
+    "Notion", "Jira", "AWS", "GCP", "Azure",
+]
+
+
+async def extract_tech_stack(state: ResearchState) -> dict[str, Any]:
+    haystack_parts = [state.get("raw_website_text") or ""]
+    for item in state.get("news_results", []):
+        haystack_parts.append(item.get("content", ""))
+    haystack = " ".join(haystack_parts).lower()
+
+    hits: list[str] = []
+    for kw in TECH_KEYWORDS:
+        if re.search(rf"\b{re.escape(kw.lower())}\b", haystack):
+            hits.append(kw)
+    return {"tech_stack_hints": hits}
 
 
 async def run_research_agent(lead: dict[str, Any]) -> dict[str, Any]:

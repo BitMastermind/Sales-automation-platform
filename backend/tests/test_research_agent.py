@@ -59,3 +59,39 @@ def test_research_output_round_trips_dict():
     }
     obj = ResearchOutput(**payload)
     assert obj.model_dump() == payload
+
+
+async def test_extract_tech_stack_finds_keywords_case_insensitive():
+    from agents.research_agent import extract_tech_stack
+
+    state = {
+        "lead": {},
+        "raw_website_text": "We use SALESFORCE and slack daily.",
+        "news_results": [{"content": "They migrated to AWS last quarter."}],
+        "tech_stack_hints": [],
+        "synthesized": None,
+        "quality_ok": False,
+        "refine_count": 0,
+    }
+    out = await extract_tech_stack(state)
+    assert out == {"tech_stack_hints": ["Salesforce", "Slack", "AWS"]}
+
+
+async def test_extract_tech_stack_dedups_and_returns_empty_when_none_found():
+    from agents.research_agent import extract_tech_stack
+
+    state = {
+        "lead": {},
+        "raw_website_text": "Salesforce salesforce SALESFORCE",
+        "news_results": [],
+        "tech_stack_hints": [],
+        "synthesized": None,
+        "quality_ok": False,
+        "refine_count": 0,
+    }
+    out = await extract_tech_stack(state)
+    assert out == {"tech_stack_hints": ["Salesforce"]}
+
+    state["raw_website_text"] = "no known tech here"
+    out = await extract_tech_stack(state)
+    assert out == {"tech_stack_hints": []}
