@@ -27,7 +27,11 @@ dependencies = [
     "pytest-asyncio",
     "respx",
     "factory-boy",
+    "sales-automation-agents",
 ]
+
+[tool.uv.sources]
+sales-automation-agents = { path = "../agents", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
