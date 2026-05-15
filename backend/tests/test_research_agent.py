@@ -1,4 +1,5 @@
 """Tests for the Research Agent (Phase 3A)."""
+import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
@@ -296,3 +297,123 @@ async def test_check_quality_fails_when_llm_returns_passes_false():
         out = await check_quality(state)
 
     assert out == {"quality_ok": False}
+
+
+# ---------------------------------------------------------------------------
+# Task 11 — end-to-end graph tests
+# ---------------------------------------------------------------------------
+
+VALID_OUTPUT = {
+    "industry": "Logistics SaaS",
+    "company_size": "50-200",
+    "pain_points": ["manual outbound prospecting", "scaling sales ops"],
+    "recent_news": ["expanded to Europe Q1 2025"],
+    "tech_stack": ["Salesforce"],
+    "research_summary": (
+        "Acme Logistics is a mid-size logistics SaaS firm based in Denver. "
+        "They expanded into Europe in Q1 2025 and recently hired a VP of Sales."
+    ),
+}
+
+
+async def test_happy_path():
+    from agents.research_agent import run_research_agent
+
+    html = "<html><body><h1>Acme Logistics</h1><p>We use Salesforce.</p></body></html>"
+    with respx.mock(base_url="https://acme.example") as mocker, \
+         patch("agents.research_agent.AsyncTavilyClient") as tav, \
+         patch("agents.research_agent._call_claude_synthesize",
+               new=AsyncMock(return_value=VALID_OUTPUT)), \
+         patch("agents.research_agent._call_openai_quality",
+               new=AsyncMock(return_value={"passes": True, "reason": "named city + dated event"})):
+        mocker.get("/").mock(return_value=Response(200, text=html))
+        tav.return_value.search = AsyncMock(return_value={"results": []})
+
+        result = await run_research_agent({
+            "company_name": "Acme Logistics",
+            "website": "https://acme.example/",
+        })
+
+    assert result["industry"] == "Logistics SaaS"
+    assert 2 <= len(result["pain_points"]) <= 4
+    assert len(result["research_summary"].split()) >= 20
+
+
+async def test_website_unreachable_still_succeeds():
+    from agents.research_agent import run_research_agent
+
+    captured: dict = {}
+
+    async def _fake_synth(user_message: str, refine_context=None):
+        captured["msg"] = user_message
+        return VALID_OUTPUT
+
+    with respx.mock(base_url="https://broken.example") as mocker, \
+         patch("agents.research_agent.AsyncTavilyClient") as tav, \
+         patch("agents.research_agent._call_claude_synthesize", new=_fake_synth), \
+         patch("agents.research_agent._call_openai_quality",
+               new=AsyncMock(return_value={"passes": True, "reason": "ok"})):
+        mocker.get("/").mock(return_value=Response(500))
+        tav.return_value.search = AsyncMock(return_value={"results": []})
+
+        result = await run_research_agent({
+            "company_name": "Broken Inc",
+            "website": "https://broken.example/",
+        })
+
+    assert result["industry"] == "Logistics SaaS"  # came from VALID_OUTPUT
+    assert "<no website content available>" in captured["msg"]
+
+
+async def test_quality_check_loop_one_refine_then_pass():
+    from agents.research_agent import run_research_agent
+
+    short_then_long = [
+        # First synthesis: short summary that auto-fails quality (< 20 words)
+        {**VALID_OUTPUT, "research_summary": "Acme is a SaaS firm."},
+        # Second synthesis (refine): full valid output
+        VALID_OUTPUT,
+    ]
+
+    synth_mock = AsyncMock(side_effect=short_then_long)
+    quality_mock = AsyncMock(return_value={"passes": True, "reason": "ok"})
+
+    with respx.mock(base_url="https://acme.example") as mocker, \
+         patch("agents.research_agent.AsyncTavilyClient") as tav, \
+         patch("agents.research_agent._call_claude_synthesize", new=synth_mock), \
+         patch("agents.research_agent._call_openai_quality", new=quality_mock):
+        mocker.get("/").mock(return_value=Response(200, text="<p>hi</p>"))
+        tav.return_value.search = AsyncMock(return_value={"results": []})
+
+        result = await run_research_agent({
+            "company_name": "Acme",
+            "website": "https://acme.example/",
+        })
+
+    assert synth_mock.await_count == 2  # initial + 1 refine
+    assert result["industry"] == "Logistics SaaS"
+
+
+async def test_max_retries_raises_agent_output_error():
+    from agents.research_agent import run_research_agent
+    from core.exceptions import AgentOutputError
+
+    short_output = {**VALID_OUTPUT, "research_summary": "Acme is a SaaS firm."}
+    synth_mock = AsyncMock(return_value=short_output)
+    quality_mock = AsyncMock(return_value={"passes": False, "reason": "no fact"})
+
+    with respx.mock(base_url="https://acme.example") as mocker, \
+         patch("agents.research_agent.AsyncTavilyClient") as tav, \
+         patch("agents.research_agent._call_claude_synthesize", new=synth_mock), \
+         patch("agents.research_agent._call_openai_quality", new=quality_mock):
+        mocker.get("/").mock(return_value=Response(200, text="<p>hi</p>"))
+        tav.return_value.search = AsyncMock(return_value={"results": []})
+
+        with pytest.raises(AgentOutputError) as exc_info:
+            await run_research_agent({
+                "company_name": "Acme",
+                "website": "https://acme.example/",
+            })
+
+    assert "quality_check_failed_after_2_refines" in exc_info.value.violations
+    assert synth_mock.await_count == 3  # initial + 2 refines

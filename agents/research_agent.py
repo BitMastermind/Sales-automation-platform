@@ -21,7 +21,8 @@ import anthropic
 import httpx
 import openai
 from bs4 import BeautifulSoup
-from pydantic import BaseModel, Field
+from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field, ValidationError
 from tavily import AsyncTavilyClient
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -232,6 +233,60 @@ async def check_quality(state: ResearchState) -> dict[str, Any]:
     return {"quality_ok": bool(result.get("passes"))}
 
 
+def _route_after_quality(state: ResearchState) -> str:
+    if state["quality_ok"] or state["refine_count"] >= 2:
+        return "end"
+    return "synthesize"
+
+
+def _build_graph():
+    graph = StateGraph(ResearchState)
+    graph.add_node("fetch_website", fetch_website)
+    graph.add_node("search_news", search_news)
+    graph.add_node("extract_tech_stack", extract_tech_stack)
+    graph.add_node("synthesize", synthesize)
+    graph.add_node("check_quality", check_quality)
+
+    graph.add_edge(START, "fetch_website")
+    graph.add_edge("fetch_website", "search_news")
+    graph.add_edge("search_news", "extract_tech_stack")
+    graph.add_edge("extract_tech_stack", "synthesize")
+    graph.add_edge("synthesize", "check_quality")
+    graph.add_conditional_edges(
+        "check_quality",
+        _route_after_quality,
+        {"end": END, "synthesize": "synthesize"},
+    )
+    return graph.compile()
+
+
+_graph = _build_graph()
+
+
 async def run_research_agent(lead: dict[str, Any]) -> dict[str, Any]:
-    """Entry point — implemented progressively across Tasks 6–11."""
-    raise NotImplementedError("filled in by later tasks")
+    """Entry point — runs the compiled LangGraph research pipeline."""
+    from core.exceptions import AgentOutputError
+
+    initial: ResearchState = {
+        "lead": lead,
+        "raw_website_text": None,
+        "news_results": [],
+        "tech_stack_hints": [],
+        "synthesized": None,
+        "quality_ok": False,
+        "refine_count": 0,
+    }
+    final = await _graph.ainvoke(initial)
+
+    if not final["quality_ok"]:
+        raise AgentOutputError(
+            agent="research",
+            violations=["quality_check_failed_after_2_refines"],
+        )
+
+    try:
+        validated = ResearchOutput(**final["synthesized"])
+    except ValidationError as e:
+        raise AgentOutputError(agent="research", violations=[str(e)])
+
+    return validated.model_dump()
