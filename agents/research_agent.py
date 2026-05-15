@@ -19,6 +19,7 @@ from typing import Any, TypedDict
 import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
+from tavily import AsyncTavilyClient
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,18 @@ async def fetch_website(state: ResearchState) -> dict[str, Any]:
     except Exception as e:
         logger.warning("fetch_website failed for %s: %s", url, e)
         return {"raw_website_text": ""}
+
+
+async def search_news(state: ResearchState) -> dict[str, Any]:
+    from core.config import settings  # local import — keeps agents loadable without backend on path
+    client = AsyncTavilyClient(api_key=settings.tavily_api_key)
+    try:
+        query = f"{state['lead']['company_name']} company news 2024 2025"
+        results = await client.search(query, max_results=5)
+        return {"news_results": results.get("results", [])}
+    except Exception as e:
+        logger.warning("Tavily search failed: %s", e)
+        return {"news_results": []}
 
 
 async def run_research_agent(lead: dict[str, Any]) -> dict[str, Any]:

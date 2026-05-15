@@ -150,3 +150,40 @@ async def test_fetch_website_returns_empty_string_on_connection_error_no_raise()
         })
 
     assert out == {"raw_website_text": ""}
+
+
+from unittest.mock import AsyncMock, patch
+
+
+async def test_search_news_returns_results_list():
+    from agents.research_agent import search_news
+
+    fake = {"results": [
+        {"title": "Acme expands", "url": "u1", "content": "Acme news content"},
+        {"title": "Acme hires", "url": "u2", "content": "more"},
+    ]}
+    with patch("agents.research_agent.AsyncTavilyClient") as cls:
+        cls.return_value.search = AsyncMock(return_value=fake)
+        out = await search_news({
+            "lead": {"company_name": "Acme", "website": "x"},
+            "raw_website_text": "", "news_results": [],
+            "tech_stack_hints": [], "synthesized": None,
+            "quality_ok": False, "refine_count": 0,
+        })
+
+    assert out == {"news_results": fake["results"]}
+
+
+async def test_search_news_returns_empty_list_on_exception_no_raise():
+    from agents.research_agent import search_news
+
+    with patch("agents.research_agent.AsyncTavilyClient") as cls:
+        cls.return_value.search = AsyncMock(side_effect=RuntimeError("Tavily down"))
+        out = await search_news({
+            "lead": {"company_name": "Acme", "website": "x"},
+            "raw_website_text": "", "news_results": [],
+            "tech_stack_hints": [], "synthesized": None,
+            "quality_ok": False, "refine_count": 0,
+        })
+
+    assert out == {"news_results": []}
