@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 
@@ -25,16 +26,37 @@ async def test_trigger_research_wrong_token_returns_401(async_client: AsyncClien
     assert resp.status_code == 401
 
 
-async def test_trigger_research_valid_token_returns_queued(async_client: AsyncClient):
-    resp = await async_client.post(
-        "/api/internal/trigger-research",
-        json={"lead_id": ANY_LEAD_ID},
-        headers=VALID_HEADERS,
-    )
+async def test_trigger_research_valid_token_returns_real_research(async_client: AsyncClient):
+    canned = {
+        "industry": "SaaS", "company_size": "50-200",
+        "pain_points": ["a", "b"], "recent_news": [],
+        "tech_stack": [],
+        "research_summary": "Acme is a SaaS firm based in Denver with a recent expansion in Q1 2025.",
+    }
+    with patch("api.internal.trigger_research_iface",
+               new=AsyncMock(return_value=canned)):
+        resp = await async_client.post(
+            "/api/internal/trigger-research",
+            json={"lead_id": ANY_LEAD_ID},
+            headers=VALID_HEADERS,
+        )
+
     assert resp.status_code == 200
     body = resp.json()
-    assert body["data"]["queued"] is True
-    assert body["data"]["lead_id"] == ANY_LEAD_ID
+    assert body["data"] == canned
+    assert body["error"] is None
+
+
+async def test_trigger_research_returns_404_when_lead_missing(async_client: AsyncClient):
+    with patch("api.internal.trigger_research_iface",
+               new=AsyncMock(side_effect=LookupError("Lead xyz not found"))):
+        resp = await async_client.post(
+            "/api/internal/trigger-research",
+            json={"lead_id": ANY_LEAD_ID},
+            headers=VALID_HEADERS,
+        )
+
+    assert resp.status_code == 404
 
 
 async def test_trigger_personalization_valid_token(async_client: AsyncClient):
