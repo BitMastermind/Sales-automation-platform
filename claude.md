@@ -72,10 +72,10 @@ See `.env.example` for the full list. Required for any feature work:
 - **Phase 0** — Scaffold: ✅ complete
 - **Phase 1** — Data Layer: ✅ complete
 - **Phase 2** — FastAPI Backend: ✅ complete (incl. Gmail OAuth + GmailService)
-- **Phase 3** — LangGraph Agents: ⬜ not started
+- **Phase 3** — LangGraph Agents: 🟡 in progress (3A Research complete; 3B/3C/3D pending)
 - **Phase 4** — n8n Workflows: ⬜ not started
 - **Phase 5** — Frontend: ⬜ not started
-- **Phase 6** — Integration Tests: ⬜ not started
+- **Phase 6** — Integration Tests: ⬜ not started 
 - **Phase 7** — Docker & Deployment: ⬜ not started
 
 ## Working Agreements (read every session)
