@@ -71,3 +71,12 @@ async def test_get_best_templates(mock_qdrant):
     assert results[0]["reply_rate"] == 0.12
     assert results[1]["industry"] == "FinTech"
     assert mock_qdrant.upsert.await_count == 2
+
+
+def test_get_vector_store_returns_singleton():
+    from core.vector_store import get_vector_store, VectorStoreClient
+
+    a = get_vector_store()
+    b = get_vector_store()
+    assert isinstance(a, VectorStoreClient)
+    assert a is b

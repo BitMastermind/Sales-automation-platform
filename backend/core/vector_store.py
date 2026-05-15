@@ -74,3 +74,16 @@ class VectorStoreClient:
             limit=limit,
         )
         return [hit.payload for hit in hits]
+
+
+_vector_store: VectorStoreClient | None = None
+
+
+def get_vector_store() -> VectorStoreClient:
+    """Return the process-wide VectorStoreClient singleton.
+    Constructed lazily so module import does not require Qdrant to be reachable.
+    """
+    global _vector_store
+    if _vector_store is None:
+        _vector_store = VectorStoreClient()
+    return _vector_store
