@@ -95,3 +95,58 @@ async def test_extract_tech_stack_dedups_and_returns_empty_when_none_found():
     state["raw_website_text"] = "no known tech here"
     out = await extract_tech_stack(state)
     assert out == {"tech_stack_hints": []}
+
+
+import respx
+from httpx import Response
+
+
+async def test_fetch_website_extracts_visible_text_and_truncates():
+    from agents.research_agent import fetch_website
+
+    html = "<html><head><meta name='description' content='Pillar tag'></head><body>" \
+           + "<h1>Big Title</h1><p>" + ("body text " * 600) + "</p></body></html>"
+
+    with respx.mock(base_url="https://example.com") as mocker:
+        mocker.get("/").mock(return_value=Response(200, text=html))
+        out = await fetch_website({
+            "lead": {"website": "https://example.com/"},
+            "raw_website_text": None, "news_results": [],
+            "tech_stack_hints": [], "synthesized": None,
+            "quality_ok": False, "refine_count": 0,
+        })
+
+    assert "Big Title" in out["raw_website_text"]
+    assert "Pillar tag" in out["raw_website_text"]
+    assert len(out["raw_website_text"]) <= 3000
+
+
+async def test_fetch_website_returns_empty_string_on_5xx_no_raise():
+    from agents.research_agent import fetch_website
+
+    with respx.mock(base_url="https://broken.example") as mocker:
+        mocker.get("/").mock(return_value=Response(500))
+        out = await fetch_website({
+            "lead": {"website": "https://broken.example/"},
+            "raw_website_text": None, "news_results": [],
+            "tech_stack_hints": [], "synthesized": None,
+            "quality_ok": False, "refine_count": 0,
+        })
+
+    assert out == {"raw_website_text": ""}
+
+
+async def test_fetch_website_returns_empty_string_on_connection_error_no_raise():
+    from agents.research_agent import fetch_website
+    import httpx
+
+    with respx.mock(base_url="https://nope.example") as mocker:
+        mocker.get("/").mock(side_effect=httpx.ConnectError("boom"))
+        out = await fetch_website({
+            "lead": {"website": "https://nope.example/"},
+            "raw_website_text": None, "news_results": [],
+            "tech_stack_hints": [], "synthesized": None,
+            "quality_ok": False, "refine_count": 0,
+        })
+
+    assert out == {"raw_website_text": ""}

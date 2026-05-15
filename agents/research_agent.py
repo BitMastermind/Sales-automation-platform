@@ -11,10 +11,16 @@ errors separate from quality failures.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
 from typing import Any, TypedDict
 
+import httpx
+from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchState(TypedDict):
@@ -53,6 +59,36 @@ async def extract_tech_stack(state: ResearchState) -> dict[str, Any]:
         if re.search(rf"\b{re.escape(kw.lower())}\b", haystack):
             hits.append(kw)
     return {"tech_stack_hints": hits}
+
+
+def _extract_text(html: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    parts: list[str] = []
+
+    desc = soup.find("meta", attrs={"name": "description"})
+    if desc and desc.get("content"):
+        parts.append(desc["content"].strip())
+
+    for tag_name in ("h1", "h2", "h3", "p"):
+        for el in soup.find_all(tag_name):
+            text = el.get_text(strip=True)
+            if text:
+                parts.append(text)
+
+    return "\n".join(parts).strip()
+
+
+async def fetch_website(state: ResearchState) -> dict[str, Any]:
+    url = state["lead"]["website"]
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "SalesAutomationBot/1.0"})
+            resp.raise_for_status()
+        text = await asyncio.to_thread(_extract_text, resp.text)
+        return {"raw_website_text": text[:3000]}
+    except Exception as e:
+        logger.warning("fetch_website failed for %s: %s", url, e)
+        return {"raw_website_text": ""}
 
 
 async def run_research_agent(lead: dict[str, Any]) -> dict[str, Any]:
