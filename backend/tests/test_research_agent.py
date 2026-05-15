@@ -187,3 +187,57 @@ async def test_search_news_returns_empty_list_on_exception_no_raise():
         })
 
     assert out == {"news_results": []}
+
+
+async def test_synthesize_calls_claude_helper_and_stores_result():
+    from agents.research_agent import synthesize
+
+    fake_output = {
+        "industry": "SaaS", "company_size": "50-200",
+        "pain_points": ["a", "b"], "recent_news": [],
+        "tech_stack": ["AWS"],
+        "research_summary": "Acme is a SaaS firm running on AWS. Recently expanded to EU.",
+    }
+    with patch("agents.research_agent._call_claude_synthesize",
+               new=AsyncMock(return_value=fake_output)) as mock_helper:
+        out = await synthesize({
+            "lead": {"company_name": "Acme", "website": "x"},
+            "raw_website_text": "Acme uses AWS",
+            "news_results": [],
+            "tech_stack_hints": ["AWS"],
+            "synthesized": None,
+            "quality_ok": False,
+            "refine_count": 0,
+        })
+
+    assert out["synthesized"] == fake_output
+    assert out["refine_count"] == 0  # initial call does NOT increment
+    assert mock_helper.await_count == 1
+    # On the initial call, refine_context must be None
+    args, kwargs = mock_helper.call_args
+    assert kwargs.get("refine_context") is None or args[1] is None
+
+
+async def test_synthesize_increments_refine_count_on_re_entry():
+    from agents.research_agent import synthesize
+
+    fake_output = {
+        "industry": "SaaS", "company_size": "50-200",
+        "pain_points": ["a", "b"], "recent_news": [],
+        "tech_stack": [],
+        "research_summary": "ABC is a SaaS firm in the EU; opened a new office in Berlin in March 2025.",
+    }
+    with patch("agents.research_agent._call_claude_synthesize",
+               new=AsyncMock(return_value=fake_output)):
+        out = await synthesize({
+            "lead": {"company_name": "ABC", "website": "x"},
+            "raw_website_text": "",
+            "news_results": [],
+            "tech_stack_hints": [],
+            "synthesized": {"research_summary": "vague prior summary"},
+            "quality_ok": False,  # signals re-entry after a failed quality check
+            "refine_count": 0,
+        })
+
+    assert out["refine_count"] == 1
+    assert out["synthesized"] == fake_output

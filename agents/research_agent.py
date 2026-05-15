@@ -16,10 +16,14 @@ import logging
 import re
 from typing import Any, TypedDict
 
+import anthropic
 import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
 from tavily import AsyncTavilyClient
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from agents.prompts.research_prompts import SYNTHESIS_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +106,95 @@ async def search_news(state: ResearchState) -> dict[str, Any]:
     except Exception as e:
         logger.warning("Tavily search failed: %s", e)
         return {"news_results": []}
+
+
+RESEARCH_OUTPUT_TOOL = {
+    "name": "submit_research",
+    "description": "Submit the structured research findings.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "industry": {"type": "string"},
+            "company_size": {"type": "string"},
+            "pain_points": {"type": "array", "items": {"type": "string"},
+                            "minItems": 2, "maxItems": 4},
+            "recent_news": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+            "tech_stack": {"type": "array", "items": {"type": "string"}},
+            "research_summary": {"type": "string"},
+        },
+        "required": ["industry", "company_size", "pain_points",
+                     "recent_news", "tech_stack", "research_summary"],
+    },
+}
+
+
+def _build_synthesize_user_message(state: ResearchState, refine_context: dict | None) -> str:
+    parts: list[str] = [
+        f"Company: {state['lead']['company_name']}",
+        f"Website: {state['lead']['website']}",
+        "",
+        "WEBSITE TEXT (truncated):",
+        state.get("raw_website_text") or "<no website content available>",
+        "",
+        "RECENT NEWS:",
+    ]
+    if state.get("news_results"):
+        for item in state["news_results"][:5]:
+            parts.append(f"- {item.get('title', '')}: {item.get('content', '')}")
+    else:
+        parts.append("<no news results>")
+    parts.append("")
+    parts.append(f"TECH_STACK_HINTS: {state.get('tech_stack_hints', [])}")
+
+    if refine_context:
+        parts.append("")
+        parts.append("REFINEMENT NOTE:")
+        parts.append(refine_context["instruction"])
+        parts.append(f"PRIOR SUMMARY (rejected): {refine_context['prior_summary']}")
+
+    return "\n".join(parts)
+
+
+@retry(
+    retry=retry_if_exception_type((
+        anthropic.APIConnectionError,
+        anthropic.RateLimitError,
+        anthropic.APITimeoutError,
+    )),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+async def _call_claude_synthesize(user_message: str, refine_context: dict | None = None) -> dict[str, Any]:
+    from core.config import settings
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    resp = await client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        system=SYNTHESIS_SYSTEM,
+        tools=[RESEARCH_OUTPUT_TOOL],
+        tool_choice={"type": "tool", "name": "submit_research"},
+        messages=[{"role": "user", "content": user_message}],
+    )
+    tool_use = next(b for b in resp.content if getattr(b, "type", None) == "tool_use")
+    return tool_use.input
+
+
+async def synthesize(state: ResearchState) -> dict[str, Any]:
+    refine_count = state["refine_count"]
+    refine_context = None
+    if not state["quality_ok"] and state["synthesized"] is not None:
+        refine_count += 1
+        refine_context = {
+            "prior_summary": state["synthesized"].get("research_summary", ""),
+            "instruction": (
+                "Previous attempt failed the quality check. Write a more specific "
+                "summary that references a concrete fact from the source material."
+            ),
+        }
+    user_message = _build_synthesize_user_message(state, refine_context)
+    raw_output = await _call_claude_synthesize(user_message, refine_context=refine_context)
+    return {"synthesized": raw_output, "refine_count": refine_count}
 
 
 async def run_research_agent(lead: dict[str, Any]) -> dict[str, Any]:
