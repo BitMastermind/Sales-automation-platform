@@ -442,3 +442,49 @@ async def test_schema_validation_failure_raises_agent_output_error():
                 "company_name": "Acme",
                 "website": "https://acme.example/",
             })
+
+
+# ---------------------------------------------------------------------------
+# Task 12 — backend interface test
+# ---------------------------------------------------------------------------
+
+async def test_trigger_research_persists_result_and_updates_status(db_session):
+    """Backend interface test (test #5 from spec). Uses real Postgres test container."""
+    from uuid import uuid4
+    from sqlalchemy import text as _t
+    import agents_interface.research as research_iface
+
+    # Insert a campaign + lead via raw SQL (matches existing test patterns elsewhere)
+    campaign_id = uuid4()
+    lead_id = uuid4()
+    await db_session.execute(_t(
+        "INSERT INTO campaigns (id, name, status) VALUES (:id, :name, 'draft')"
+    ), {"id": campaign_id, "name": "T"})
+    await db_session.execute(_t(
+        "INSERT INTO leads (id, campaign_id, company_name, website, email, status) "
+        "VALUES (:id, :cid, :cn, :w, :e, 'new')"
+    ), {"id": lead_id, "cid": campaign_id, "cn": "Acme",
+        "w": "https://acme.example/", "e": "x@acme.example"})
+    await db_session.commit()
+
+    canned = {**VALID_OUTPUT}
+
+    fake_vs = AsyncMock()
+    with patch.object(research_iface, "run_research_agent",
+                      new=AsyncMock(return_value=canned)), \
+         patch.object(research_iface, "get_vector_store", return_value=fake_vs):
+        result = await research_iface.trigger_research(lead_id, db_session)
+
+    assert result == canned
+
+    row = (await db_session.execute(_t(
+        "SELECT status, research_data FROM leads WHERE id = :id"
+    ), {"id": lead_id})).first()
+    assert row.status == "researched"
+    assert row.research_data == canned
+
+    fake_vs.upsert_company_research.assert_awaited_once()
+    args, _ = fake_vs.upsert_company_research.call_args
+    assert args[0] == lead_id
+    assert args[1] == canned["research_summary"]
+    assert args[2] == canned
