@@ -1,0 +1,21 @@
+.git
+.env
+.env.*
+
+# Python
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Node / Next
+**/node_modules/
+**/.next/
+**/.turbo/
+**/.cache/
+
+# Misc
+**/.DS_Store
+scratchpad.md
