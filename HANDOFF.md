@@ -26,17 +26,16 @@
 **Handoff to:** Claude Code — n8n workflow export/config is a structured task well-suited to CC.
 **Gotchas:** Email model uses raw string enum values `"outreach"` / `"followup"` (not a Python Enum class) — interface layer uses string literals. Model ID used: `claude-sonnet-4-6` (latest Sonnet 4.6).
 
+## 2026-05-16T05:12Z — Codex
+**Phase:** Phase 4 — n8n Workflows
+**Did:** Generated production-ready n8n workflow exports in `n8n-workflows/` (`campaign_launcher.json`, `gmail_reply_monitor.json`, `followup_scheduler.json`) with credential-by-name references and HTTP error routing to Slack. Added `n8n-workflows/CREDENTIALS.md`, appended `Setup Order` to `n8n-workflows/README.md`, and noted export gotchas in `scratchpad.md`.
+**Next:** Run the manual import checks in n8n (Phase 4 verify list) and tweak node parameters if n8n import complains about any schema fields (especially Gmail node field names / simplify output). Then commit the workflow JSON + docs.
+**Handoff to:** Claude Code — Phase 5 frontend work is precision feature building per routing table.
+**Gotchas:** No-Code constraint means `reply_text` uses Gmail node simplified fields (`textPlain` fallback). Some idempotency keys on schedule-triggered internal GET calls use the execution id (no natural `$json.id` available).
+
 ## 2026-05-16T04:32Z — Codex
 **Phase:** Phase 3 status check (3A/3B/3C)
 **Did:** Verified Phase 3A/3B/3C implementations exist in repo and located their backend interfaces. Activated `backend/.venv` and ran the three phase test modules; all passed.
 **Next:** Proceed with Phase 3D Follow-up Agent (only remaining Phase 3 stub is `agents/followup_agent.py`).
 **Handoff to:** Claude Code — Phase 3D is single-feature build work per routing table.
 **Gotchas:** `pytest` is not on global PATH; run tests via `source backend/.venv/bin/activate`.
-
-## 2026-05-16T00:00Z — Claude Code (Opus)
-**Phase:** Meta / workflow setup
-**Did:** Designed and committed dual-agent workflow spec + plan. Created AGENTS.md and HANDOFF.md at repo root. Updated claude.md with multi-agent pointer.
-**Next:** Resume Phase 3B (Personalization Agent). Single-file feature work → Claude Code (Sonnet).
-**Claude window:** unknown — first entry. Assume fresh window starting now.
-**Handoff to:** Claude Code — Phase 3B is single-file precision work.
-**Gotchas:** Codex CLI setup status not verified by this session — confirm `AGENTS.md` is picked up automatically the first time Codex is invoked.
