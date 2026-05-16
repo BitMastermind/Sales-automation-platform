@@ -60,33 +60,36 @@ flowchart LR
 Each layer has a single responsibility and can be replaced independently. Swap n8n for Temporal, or LangGraph for a custom DAG — neither leaks into the other.
 
 ```mermaid
-flowchart TB
-    subgraph Interaction["🖥 Interaction Plane"]
-        UI[Next.js 14 Dashboard]
-        API[FastAPI Backend]
+flowchart LR
+    subgraph I["🖥  Interaction Plane"]
+        direction TB
+        UI[Next.js Dashboard]
+        API[FastAPI]
     end
 
-    subgraph Reasoning["🧠 Reasoning Plane"]
+    subgraph R["🧠  Reasoning Plane"]
+        direction TB
         LG[LangGraph Agents]
-        QD[(Qdrant Vectors)]
-        RD[(Redis Cache)]
+        QD[(Qdrant)]
+        LG <-->|vectors| QD
     end
 
-    subgraph Automation["⚙️ Automation Plane"]
-        N8N[n8n Workflows]
+    subgraph A["⚙️  Automation Plane"]
+        direction TB
+        N8N[n8n]
         GM[Gmail API]
         SL[Slack / HubSpot]
+        N8N -->|send| GM
+        N8N --> SL
     end
 
-    Interaction -->|HTTP| Reasoning
-    Interaction -->|webhook| Automation
-    LG <-->|embeddings| QD
-    Automation -->|send / notify| GM
-    Automation --> SL
+    I -->|HTTP / REST| R
+    I -->|webhook| A
+    R -->|email draft| A
 
-    style Interaction fill:#0d1f3c,stroke:#388bfd,color:#79c0ff
-    style Reasoning fill:#0d1f0d,stroke:#3fb950,color:#56d364
-    style Automation fill:#2d1600,stroke:#d29000,color:#f0883e
+    style I fill:#0d1f3c,stroke:#388bfd,color:#c9d1d9
+    style R fill:#0d1f0d,stroke:#3fb950,color:#c9d1d9
+    style A fill:#2d1600,stroke:#d29000,color:#c9d1d9
 ```
 
 | Plane          | Layer              | Responsibility                                                 |
