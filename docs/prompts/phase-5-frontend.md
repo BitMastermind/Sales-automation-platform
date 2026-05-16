@@ -8,13 +8,27 @@
 
 | | |
 |---|---|
-| **Model** | `claude-opus-4-7` |
-| **Skills** | Invoke `frontend-design` before writing any UI code. Invoke `brainstorming` before Phase 5B. |
 | **Depends on** | Phase 2 complete (FastAPI running, `/api/campaigns` returns data). Phase 0 complete (Next.js initialized with shadcn/ui). |
-| **Estimated time** | 2–3 hours across 2 sub-sessions |
+| **Estimated time** | 2–3 hours across 2–3 sub-sessions |
 
 > The goal is a polished, production-feel SaaS dashboard — not generic AI output.
-> Invoke `/skill frontend-design` first in every Phase 5 session. It will guide design decisions.
+
+### Phase 5A routing — Hybrid (Claude Code first, then Codex)
+
+5A spans many components and pages. Split it into two passes to get design quality AND breadth:
+
+| Pass | Agent | Model | What to do |
+|------|-------|-------|------------|
+| **5A-Pass-1** | **Claude Code** | `claude-opus-4-7` | Design the sidebar layout shell + the Dashboard page only. Invoke `/skill frontend-design` first. Get the design pattern right on one page before replicating. |
+| **5A-Pass-2** | **Codex** | n/a | Paste the Phase 5A prompt below. Codex uses the first page as the established pattern and scaffolds the remaining 3 pages (Leads, Campaigns, Settings) + shared components. |
+
+### Phase 5B routing — Claude Code
+
+| | |
+|---|---|
+| **Agent** | **Claude Code** |
+| **Model** | `claude-opus-4-7` |
+| **Skills** | Invoke `brainstorming` first, then `frontend-design`. |
 
 ---
 

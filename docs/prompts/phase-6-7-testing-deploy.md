@@ -8,8 +8,10 @@
 
 | | |
 |---|---|
-| **Model** | `claude-sonnet-4-6` |
-| **Skills** | Invoke `verification-before-completion` before claiming any test suite passes |
+| **Agent** | **Codex** (generating tests across many files → Table A: "Generating tests across many files → Codex") |
+| **Model** | n/a — Codex manages its own model |
+| **Skills** | None — paste the prompt directly; Codex auto-reads `AGENTS.md` and `HANDOFF.md` |
+| **Verify** | Run all test commands in your own terminal after Codex finishes — do not skip |
 | **Depends on** | Phases 1–5 complete. Backend runs locally. |
 | **Rule** | Real Postgres test container — NO database mocking. |
 
@@ -224,8 +226,10 @@ pytest backend/tests/ -v --tb=short > test_results.txt
 
 | | |
 |---|---|
-| **Model** | `claude-sonnet-4-6` |
-| **Skills** | Invoke `verification-before-completion` before claiming the stack is healthy |
+| **Agent** | **Codex** (sweep across Dockerfiles, compose, nginx, CI configs → Table A: "docs/JSON updates spanning many files") |
+| **Model** | n/a — Codex manages its own model |
+| **Skills** | None — paste the prompt directly; Codex auto-reads `AGENTS.md` and `HANDOFF.md` |
+| **Verify** | Run all 10 manual verification checks in your terminal after Codex finishes |
 | **Depends on** | Phase 6 complete (all tests pass) |
 
 ---

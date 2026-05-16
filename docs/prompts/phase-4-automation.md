@@ -8,8 +8,9 @@
 
 | | |
 |---|---|
-| **Model** | `claude-sonnet-4-6` |
-| **Skills** | None required — this is a specification/JSON generation task |
+| **Agent** | **Codex** (bulk JSON across multiple workflow files → Table A: "docs/JSON updates spanning many files") |
+| **Model** | n/a — Codex manages its own model |
+| **Skills** | None — paste the prompt directly; Codex auto-reads `AGENTS.md` and `HANDOFF.md` at session start |
 | **Depends on** | Phase 2 complete (FastAPI `/api/internal/*` routes working) |
 | **Estimated time** | 60–90 min |
 
