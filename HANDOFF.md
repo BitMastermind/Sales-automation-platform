@@ -18,6 +18,14 @@
 
 ---
 
+## 2026-05-16T10:00Z — Claude Code (Sonnet)
+**Phase:** 3D Follow-up Agent
+**Did:** Implemented `agents/followup_agent.py` (LangGraph conditional graph, 4 strategies, angle-avoidance logic), `agents/prompts/followup_prompts.py`, `backend/agents_interface/followup.py`, wired `POST /api/internal/trigger-followup`, added followup section to `smoke.py`. 81/81 tests pass.
+**Next:** Phase 3 is complete. Start Phase 4 (n8n workflows) → route to Codex (bulk JSON across many workflow files).
+**Claude window:** moderate use this session. Check reset before starting Phase 4.
+**Handoff to:** Codex — Phase 4 is multi-file n8n JSON generation (Table A: "Docs/JSON updates spanning many files → Codex").
+**Gotchas:** `test_trigger_followup_valid_token` in `test_internal.py` was checking for old stub behavior (`queued: True`); updated to expect 404 (correct: lead not in test DB). Smoke script for followup uses mocked LLM internally — always passes without real API key; smoke is for real-API validation only.
+
 ## 2026-05-16T04:32Z — Codex
 **Phase:** Phase 3 status check (3A/3B/3C)
 **Did:** Verified Phase 3A/3B/3C implementations exist in repo and located their backend interfaces. Activated `backend/.venv` and ran the three phase test modules; all passed.
