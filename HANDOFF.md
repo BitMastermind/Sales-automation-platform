@@ -33,9 +33,9 @@
 **Handoff to:** Claude Code — Phase 5B is UI feature building with tight context per routing table.
 **Gotchas:** shadcn/ui in this repo is the Base UI variant (no `asChild` on `Button` / `DropdownMenuTrigger`). Recharts logs a width/height warning during static prerender, but renders correctly at runtime due to explicit `h-[320px]` containers.
 
-## 2026-05-16T05:12Z — Codex
-**Phase:** Phase 4 — n8n Workflows
-**Did:** Generated production-ready n8n workflow exports in `n8n-workflows/` (`campaign_launcher.json`, `gmail_reply_monitor.json`, `followup_scheduler.json`) with credential-by-name references and HTTP error routing to Slack. Added `n8n-workflows/CREDENTIALS.md`, appended `Setup Order` to `n8n-workflows/README.md`, and noted export gotchas in `scratchpad.md`.
-**Next:** Run the manual import checks in n8n (Phase 4 verify list) and tweak node parameters if n8n import complains about any schema fields (especially Gmail node field names / simplify output). Then commit the workflow JSON + docs.
-**Handoff to:** Claude Code — Phase 5 frontend work is precision feature building per routing table.
-**Gotchas:** No-Code constraint means `reply_text` uses Gmail node simplified fields (`textPlain` fallback). Some idempotency keys on schedule-triggered internal GET calls use the execution id (no natural `$json.id` available).
+## 2026-05-16T06:06Z — Codex
+**Phase:** Phase 5B — Campaign Creation Modal
+**Did:** Added a 3-step campaign creation modal with a typed `useState` state machine: Step 1 basics (word counter + tone segmented control), Step 2 CSV upload (react-dropzone, column auto-detect + mapping, validation preview), Step 3 review (Gmail status + sequential launch flow). Wired “New Campaign” to open the modal and navigate to `/campaigns/[id]` on success.
+**Next:** Run Phase 5B manual verify (golden path + edge cases) in `cd frontend && npm run dev`. If desired, tighten CSV parsing to handle quoted commas.
+**Handoff to:** Claude Code — UI polish / manual test iteration fits CC per routing table.
+**Gotchas:** `npx tsc` bin is broken in this repo’s `node_modules` (expects `typescript/lib/tsc.js` but package has `lib/_tsc.js`); `node node_modules/typescript/lib/_tsc.js --noEmit` works.
