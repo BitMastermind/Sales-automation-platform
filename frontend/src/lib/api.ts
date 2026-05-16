@@ -87,6 +87,21 @@ export async function patchCampaignStatus(
   })
 }
 
+export async function createCampaign(input: {
+  name: string
+  settings?: Record<string, unknown> | null
+}): Promise<Campaign> {
+  const env = await request<Campaign>(`/api/campaigns`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: input.name,
+      settings: input.settings ?? null,
+    }),
+  })
+  return env.data
+}
+
 export async function uploadLeads(
   campaignId: string,
   file: File,
@@ -116,4 +131,3 @@ export async function fetchLead(id: string): Promise<{ data: LeadDetail }> {
   const env = await request<LeadDetail>(`/api/leads/${id}`)
   return { data: env.data }
 }
-

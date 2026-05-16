@@ -12,6 +12,7 @@ import type { Campaign, CampaignStatus, Meta } from "@/lib/types"
 import EmptyState from "@/components/EmptyState"
 import PageHeader from "@/components/PageHeader"
 import StatusBadge from "@/components/StatusBadge"
+import CreateCampaignModal from "@/components/campaigns/CreateCampaignModal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -52,6 +53,7 @@ function toggleStatus(status: string): CampaignStatus {
 
 export default function CampaignsClient() {
   const [page, setPage] = useState(1)
+  const [createOpen, setCreateOpen] = useState(false)
   const queryClient = useQueryClient()
   const router = useRouter()
 
@@ -93,7 +95,16 @@ export default function CampaignsClient() {
       <PageHeader
         title="Campaigns"
         subtitle="Monitor status and performance at a glance"
-        action={<Button disabled>New Campaign</Button>}
+        action={<Button onClick={() => setCreateOpen(true)}>New Campaign</Button>}
+      />
+
+      <CreateCampaignModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={async (id) => {
+          await queryClient.invalidateQueries({ queryKey: ["campaigns"] })
+          router.push(`/campaigns/${id}`)
+        }}
       />
 
       <Card className="shadow-sm">
@@ -102,7 +113,7 @@ export default function CampaignsClient() {
             <EmptyState
               title="No campaigns yet"
               description="Create a campaign to start sending outreach and tracking replies."
-              action={<Button disabled>New Campaign</Button>}
+              action={<Button onClick={() => setCreateOpen(true)}>New Campaign</Button>}
             />
           ) : (
             <>
