@@ -39,3 +39,8 @@
 - Added `required: false` to `env_file` entries in `docker-compose.yml` so `docker compose config` passes without a `.env` file present (copy `.env.example` to `.env` before running `make dev`).
 - Alembic `[tool.hatch.build.targets.wheel]` packages section is required for editable install with non-src layout.
 - shadcn/ui v4 (Tailwind v4) detected; `components.json` generated with Default style, Slate base, CSS variables enabled.
+# Phase 4 — n8n workflow export gotchas (2026-05-16)
+- The workflows reference credentials by **name only**: `Gmail Account`, `Slack Account`, `Google Sheets Account`, `FastAPI Internal`.
+- `Idempotency-Key` headers are set on every FastAPI `/api/internal/*` HTTP node; for schedule-triggered HTTP calls the third component uses the execution id (no natural `$json.id`).
+- `campaign_launcher`: `HTTP Request — Trigger Personalization` always uses the lead id from `Split In Batches` to avoid shape mismatches from the research endpoint response.
+- Gmail reply monitor: `reply_text` is taken from `textPlain` (preferred) and falls back to `textHtml` or `snippet` to avoid Code/Function nodes.

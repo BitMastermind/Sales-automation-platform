@@ -21,3 +21,12 @@ Detailed node-level spec: [../docs/05-N8N-WORKFLOWS.md](../docs/05-N8N-WORKFLOWS
 - Workflows must be **pure orchestration**. No code nodes that reach into LLM APIs directly.
 - Every workflow's webhook URL is set via `N8N_WEBHOOK_URL` env, not hardcoded.
 - After editing in the UI, re-export the JSON and commit it.
+
+## Setup Order
+1. Import `campaign_launcher.json` (start inactive)
+2. Import `gmail_reply_monitor.json` (start inactive)
+3. Import `followup_scheduler.json` (start inactive)
+4. Configure all credentials (see `CREDENTIALS.md`)
+5. Activate `gmail_reply_monitor` first (read-only)
+6. Activate `followup_scheduler`
+7. Test `campaign_launcher` manually before activating

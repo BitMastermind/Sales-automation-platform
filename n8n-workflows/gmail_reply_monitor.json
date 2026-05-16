@@ -1,0 +1,453 @@
+{
+  "name": "gmail_reply_monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "413968e3-77b3-4985-a890-964ccaef143d",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://backend:8000/api/internal/sent-emails/recent",
+        "sendQuery": true,
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "days",
+              "value": "14"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-sent-email-ids-{{ $execution.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "d2255855-7777-4723-9905-0fab8abe4434",
+      "name": "HTTP Request — Get Sent Email IDs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        520,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "limit": 50,
+        "returnAll": false,
+        "additionalFields": {
+          "q": "is:inbox newer_than:15m"
+        }
+      },
+      "id": "31dad66c-8bf8-4a0a-88b0-346ef179889d",
+      "name": "Gmail — Search Replies",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        760,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.id !== undefined }}"
+            }
+          ]
+        }
+      },
+      "id": "779f7dae-8239-46c8-b7c1-94feeacf0370",
+      "name": "IF — Any Messages?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "a98caa6d-8100-474d-b296-c7eb5ef059ff",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "additionalFields": {
+          "simplify": true
+        }
+      },
+      "id": "49e71608-2b58-41d0-8103-255a45356ee5",
+      "name": "Gmail — Get Full Message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/webhooks/n8n/reply-received",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-reply-webhook-{{ $json.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"gmail_message_id\": \"{{ $json.id }}\",\n  \"reply_text\": \"{{ $json.textPlain || $json.textHtml || $json.snippet }}\",\n  \"received_at\": \"{{ ($json.internalDate || $json.date) }}\"\n}",
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "281f2347-8287-4664-af3e-0beec4a61fa0",
+      "name": "HTTP Request — POST Reply Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classified_as }}",
+              "operation": "in",
+              "value2": "interested,meeting_request"
+            }
+          ]
+        }
+      },
+      "id": "e8182005-1827-40e1-904f-59e74d15b2b8",
+      "name": "IF — Interested?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#sales-replies",
+        "text": "=Reply from {{ $json.from }}: {{ $json.snippet }}",
+        "otherOptions": {}
+      },
+      "id": "54a256a7-b961-43ea-81a0-c9b767d70559",
+      "name": "Slack — Notify on Interest",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $env.REPLY_MONITOR_SHEET_ID }}",
+        "sheetName": "Reply Monitor Log",
+        "columnsUi": {
+          "column": [
+            {
+              "fieldName": "timestamp",
+              "value": "={{ $now }}"
+            },
+            {
+              "fieldName": "messages_checked",
+              "value": "={{ $items('Gmail — Search Replies').length }}"
+            },
+            {
+              "fieldName": "replies_found",
+              "value": "={{ $items('IF — Any Messages?')[0]?.json ? $items('Gmail — Search Replies').length : 0 }}"
+            },
+            {
+              "fieldName": "errors",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "id": "52144438-4fe2-4db5-8ba1-3c7b27a7df20",
+      "name": "Google Sheets — Log Run",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#sales-errors",
+        "text": "=Gmail reply monitor error: {{ $json.message || $json.error || $json }}",
+        "otherOptions": {}
+      },
+      "id": "549fa326-faa8-48a4-bd05-a160704d023a",
+      "name": "Slack — Error Notify",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        760,
+        80
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "1e241dc0-9981-45e3-bd01-ddc528efec06",
+      "name": "NoOp — Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Get Sent Email IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Get Sent Email IDs": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Search Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Search Replies": {
+      "main": [
+        [
+          {
+            "node": "IF — Any Messages?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Any Messages?": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets — Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Get Full Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets — Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Get Full Message": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — POST Reply Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — POST Reply Webhook": {
+      "main": [
+        [
+          {
+            "node": "IF — Interested?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Interested?": {
+      "main": [
+        [
+          {
+            "node": "Slack — Notify on Interest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp — Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack — Notify on Interest": {
+      "main": [
+        [
+          {
+            "node": "NoOp — Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets — Log Run": {
+      "main": [
+        [
+          {
+            "node": "NoOp — Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  },
+  "versionId": "38cbbd86-3030-42b3-842b-b954409e7448",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

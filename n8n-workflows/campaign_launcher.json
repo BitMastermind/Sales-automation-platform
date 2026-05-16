@@ -1,0 +1,404 @@
+{
+  "name": "campaign_launcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign-launcher",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "8308ab46-13ab-4775-a85c-b31d720720ad",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://backend:8000/api/internal/leads",
+        "sendQuery": true,
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "campaign_id",
+              "value": "={{ $json.body.campaign_id }}"
+            },
+            {
+              "name": "status",
+              "value": "new"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-fetch-leads-{{ $json.body.campaign_id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          },
+          "splitIntoItems": {
+            "propertyName": "data"
+          }
+        }
+      },
+      "id": "81bc929f-ab47-42b5-9db5-3744c556b2a4",
+      "name": "HTTP Request — Fetch Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        520,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "3e486e35-1351-4316-a102-c5ba839abeb1",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/internal/trigger-research",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-research-{{ $json.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": \"{{ $json.id }}\"\n}",
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "bb3101ed-ee44-4bb7-997f-19107d0d89b4",
+      "name": "HTTP Request — Trigger Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1000,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/internal/trigger-personalization",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-personalization-{{ $('Split In Batches').item.json.id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": \"{{ $('Split In Batches').item.json.id }}\"\n}",
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "c2503f9f-ab7a-4a13-b574-757a876a8893",
+      "name": "HTTP Request — Trigger Personalization",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1240,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "toList": "={{ $json.data.lead_email }}",
+        "subject": "={{ $json.data.subject }}",
+        "message": "={{ $json.data.full_email }}",
+        "additionalFields": {}
+      },
+      "id": "1ecffd75-9ac3-4099-8acb-92587a234cb8",
+      "name": "Gmail — Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://backend:8000/api/internal/emails/{{ $('HTTP Request — Trigger Personalization').item.json.data.email_id }}/sent",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-mark-sent-{{ $('HTTP Request — Trigger Personalization').item.json.data.email_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"gmail_message_id\": \"{{ $json.messageId }}\"\n}",
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "b4a13d6e-3536-44e3-a9e6-a45e1a0731a6",
+      "name": "HTTP Request — Mark Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1720,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "c36d2e41-6264-4683-845b-fa5ef4e226f1",
+      "name": "Wait — Rate Limit",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f13edefd-daff-4c8d-a9a4-fe4fc06c92ef",
+      "name": "NoOp — Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#sales-errors",
+        "text": "=Campaign launcher error for campaign {{ $('Webhook').item.json.body.campaign_id }}: {{ $json.message || $json.error || $json }}",
+        "otherOptions": {}
+      },
+      "id": "7113dac7-1b4b-4974-9af9-dd85a2a414a5",
+      "name": "Slack — Error Notify",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        80
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Fetch Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Fetch Leads": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Trigger Research",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "NoOp — Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Trigger Research": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Trigger Personalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Trigger Personalization": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Send Email": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Mark Sent": {
+      "main": [
+        [
+          {
+            "node": "Wait — Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait — Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 3600,
+    "saveExecutionProgress": true,
+    "errorWorkflow": ""
+  },
+  "versionId": "1e241dc0-9981-45e3-bd01-ddc528efec06",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

@@ -1,0 +1,440 @@
+{
+  "name": "followup_scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "6271f5ed-6588-4ca3-bdd6-dbd1defc346b",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://backend:8000/api/internal/leads-needing-followup",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-followup-candidates-{{ $execution.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          },
+          "splitIntoItems": {
+            "propertyName": "data"
+          }
+        }
+      },
+      "id": "43a979e6-6ab5-4d5f-a206-891af126ec05",
+      "name": "HTTP Request — Get Follow-up Candidates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        520,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $items('HTTP Request — Get Follow-up Candidates').length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "ee732759-f57d-4523-abe6-fc39857bb20c",
+      "name": "IF — Any Leads?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "2f033bf6-05c4-465f-919d-315fc28219a8",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/internal/trigger-followup",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-trigger-followup-{{ $json.lead_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": \"{{ $json.lead_id }}\"\n}",
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "ecebf22e-315b-46dc-b65b-21524e23af8c",
+      "name": "HTTP Request — Trigger Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1240,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.data.should_send }}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      },
+      "id": "ad1c08da-150c-4cae-8a1c-0b24c010589a",
+      "name": "IF — Should Send?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "toList": "={{ $json.data.lead_email }}",
+        "subject": "={{ $json.data.subject }}",
+        "message": "={{ $json.data.body }}",
+        "additionalFields": {}
+      },
+      "id": "dd9ef9d3-8193-46c7-81b3-8ad9dfa42034",
+      "name": "Gmail — Send Follow-up",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        220
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://backend:8000/api/internal/emails/{{ $('HTTP Request — Trigger Follow-up').item.json.data.email_id }}/sent",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $execution.id }}-mark-sent-{{ $('HTTP Request — Trigger Follow-up').item.json.data.email_id }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"gmail_message_id\": \"{{ $json.messageId }}\"\n}",
+        "options": {
+          "response": {
+            "responseFormat": "json"
+          }
+        }
+      },
+      "id": "7a37cf70-b355-4ccf-a34e-da3db0575562",
+      "name": "HTTP Request — Mark Follow-up Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "FastAPI Internal"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $env.FOLLOWUP_DAILY_SHEET_ID }}",
+        "sheetName": "Daily Summary",
+        "columnsUi": {
+          "column": [
+            {
+              "fieldName": "date",
+              "value": "={{ $now.toISODate() }}"
+            },
+            {
+              "fieldName": "leads_processed",
+              "value": "={{ $items('HTTP Request — Get Follow-up Candidates').length }}"
+            },
+            {
+              "fieldName": "followups_sent",
+              "value": "={{ $items('Gmail — Send Follow-up').length }}"
+            },
+            {
+              "fieldName": "stopped",
+              "value": "={{ $items('IF — Should Send?').length - $items('Gmail — Send Follow-up').length }}"
+            }
+          ]
+        }
+      },
+      "id": "67bd4a4f-7088-423f-8756-dba598a54ec0",
+      "name": "Google Sheets — Daily Summary",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#sales-errors",
+        "text": "=Follow-up scheduler error: {{ $json.message || $json.error || $json }}",
+        "otherOptions": {}
+      },
+      "id": "07072783-335e-4ff9-8f4d-696fd2bd9b4e",
+      "name": "Slack — Error Notify",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        760,
+        80
+      ],
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "18ed96cf-5848-400a-bbf3-55b15f3062e0",
+      "name": "NoOp — Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Get Follow-up Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Get Follow-up Candidates": {
+      "main": [
+        [
+          {
+            "node": "IF — Any Leads?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Any Leads?": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets — Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Trigger Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets — Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Trigger Follow-up": {
+      "main": [
+        [
+          {
+            "node": "IF — Should Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Should Send?": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Send Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets — Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail — Send Follow-up": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request — Mark Follow-up Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request — Mark Follow-up Sent": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Slack — Error Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets — Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "NoOp — Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  },
+  "versionId": "03975729-b64c-4ffd-976c-579eeb707814",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
