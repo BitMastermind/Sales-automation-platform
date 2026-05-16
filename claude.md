@@ -2,6 +2,12 @@
 
 > Claude Code reads this on every session. Keep it tight; deep details live in `/docs`.
 
+## Multi-agent workflow
+This project is built using both **Claude Code** and **OpenAI Codex**.
+Before any work, read [`AGENTS.md`](AGENTS.md) (routing rules) and [`HANDOFF.md`](HANDOFF.md) (recent session log).
+Announce your routing decision before touching code.
+Update `HANDOFF.md` at the end of every session — template is at the top of that file.
+
 ## What This Is
 A full-stack, AI-powered B2B sales outreach platform. It ingests leads from CSV/Sheets,
 researches each company via LangGraph agents, generates hyper-personalized emails,
