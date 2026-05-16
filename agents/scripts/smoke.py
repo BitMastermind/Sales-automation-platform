@@ -32,49 +32,6 @@ def _bootstrap_env_and_paths() -> None:
             os.environ.setdefault(k.strip(), v.strip())
 
 
-async def smoke_followup() -> int:
-    _bootstrap_env_and_paths()
-    from agents.followup_agent import run_followup_agent
-
-    original = {"subject": "Quick question about Stripe", "body": "Hi there, wanted to ask about your outbound stack."}
-    research = {"research_summary": "Stripe is a global fintech company.", "pain_points": ["outbound at scale"]}
-
-    scenarios = [
-        ("day_3_bump",       3,  []),
-        ("day_7_value_add",  7,  []),
-        ("day_14_breakup",  14,  []),
-        ("stop",            15,  []),
-    ]
-
-    all_ok = True
-    for expected_strategy, days, prior in scenarios:
-        print(f"\n--- days={days} (expected: {expected_strategy}) ---")
-        result = await run_followup_agent(
-            lead_id="smoke-lead-1",
-            days_since_last_touch=days,
-            original_email=original,
-            prior_followups=prior,
-            research=research,
-        )
-        print(f"strategy={result.strategy}, should_send={result.should_send}")
-        if result.strategy != expected_strategy:
-            print(f"FAIL: expected strategy={expected_strategy}, got {result.strategy}", file=sys.stderr)
-            all_ok = False
-        if result.should_send and result.body:
-            word_count = len(result.body.split())
-            print(f"body ({word_count} words): {result.body[:120]}")
-            if expected_strategy == "day_3_bump" and word_count > 40:
-                print(f"FAIL: day_3_bump body exceeds 40 words ({word_count})", file=sys.stderr)
-                all_ok = False
-            if expected_strategy == "day_14_breakup" and word_count > 30:
-                print(f"FAIL: day_14_breakup body exceeds 30 words ({word_count})", file=sys.stderr)
-                all_ok = False
-
-    if all_ok:
-        print("\nOK — all 4 strategies produced correct output")
-    return 0 if all_ok else 1
-
-
 async def smoke_research() -> int:
     _bootstrap_env_and_paths()
     from agents.research_agent import run_research_agent
@@ -89,6 +46,52 @@ async def smoke_research() -> int:
         return 1
     print("OK")
     return 0
+
+
+async def smoke_followup() -> int:
+    _bootstrap_env_and_paths()
+    from agents.followup_agent import run_followup_agent
+
+    original_email = {
+        "subject": "Question about your sales motion",
+        "body": "Hi, I wanted to ask about your outbound scaling challenges.",
+    }
+    research = {
+        "industry": "Logistics SaaS",
+        "company_size": "50-200",
+        "pain_points": ["manual outbound", "scaling ops"],
+        "research_summary": "Acme is a logistics SaaS expanding to Europe.",
+    }
+
+    scenarios = [
+        ("day_3_bump (3 days)", 3),
+        ("day_7_value_add (7 days)", 7),
+        ("day_14_breakup (14 days)", 14),
+        ("stop (15 days)", 15),
+    ]
+
+    all_ok = True
+    for label, days in scenarios:
+        print(f"\n--- {label} ---")
+        result = await run_followup_agent(
+            lead_id="smoke-lead",
+            days_since_last_touch=days,
+            original_email=original_email,
+            prior_followups=[],
+            research=research,
+        )
+        print(f"should_send: {result.should_send}")
+        print(f"strategy:    {result.strategy}")
+        if result.should_send:
+            word_count = len(result.body.split()) if result.body else 0
+            print(f"subject:     {result.subject}")
+            print(f"body ({word_count} words): {result.body}")
+            limit = 30 if result.strategy == "day_14_breakup" else 40 if result.strategy == "day_3_bump" else None
+            if limit and word_count > limit:
+                print(f"FAIL: body exceeds {limit}-word limit ({word_count} words)", file=sys.stderr)
+                all_ok = False
+    print("\nOK" if all_ok else "\nFAIL")
+    return 0 if all_ok else 1
 
 
 def main() -> int:

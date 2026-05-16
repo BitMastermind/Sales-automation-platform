@@ -18,13 +18,13 @@
 
 ---
 
-## 2026-05-16T10:00Z — Claude Code (Sonnet)
+## 2026-05-16T06:30Z — Claude Code (Sonnet 4.6)
 **Phase:** 3D Follow-up Agent
-**Did:** Implemented `agents/followup_agent.py` (LangGraph conditional graph, 4 strategies, angle-avoidance logic), `agents/prompts/followup_prompts.py`, `backend/agents_interface/followup.py`, wired `POST /api/internal/trigger-followup`, added followup section to `smoke.py`. 81/81 tests pass.
-**Next:** Phase 3 is complete. Start Phase 4 (n8n workflows) → route to Codex (bulk JSON across many workflow files).
-**Claude window:** moderate use this session. Check reset before starting Phase 4.
-**Handoff to:** Codex — Phase 4 is multi-file n8n JSON generation (Table A: "Docs/JSON updates spanning many files → Codex").
-**Gotchas:** `test_trigger_followup_valid_token` in `test_internal.py` was checking for old stub behavior (`queued: True`); updated to expect 404 (correct: lead not in test DB). Smoke script for followup uses mocked LLM internally — always passes without real API key; smoke is for real-API validation only.
+**Did:** Implemented the LangGraph follow-up agent using strict TDD. Wrote 5 failing tests first, then implemented `agents/prompts/followup_prompts.py`, `agents/followup_agent.py` (2-node conditional graph: select_strategy → generate_followup), `backend/agents_interface/followup.py`, wired `/api/internal/trigger-followup` to the real interface, and added `followup` to the smoke script. All 81 tests pass with zero regressions.
+**Next:** Phase 4 — n8n Workflows (launcher, reply monitor, follow-up scheduler). See `docs/05-N8N-WORKFLOWS.md`.
+**Claude window:** ~30% used.
+**Handoff to:** Claude Code — n8n workflow export/config is a structured task well-suited to CC.
+**Gotchas:** Email model uses raw string enum values `"outreach"` / `"followup"` (not a Python Enum class) — interface layer uses string literals. Model ID used: `claude-sonnet-4-6` (latest Sonnet 4.6).
 
 ## 2026-05-16T04:32Z — Codex
 **Phase:** Phase 3 status check (3A/3B/3C)

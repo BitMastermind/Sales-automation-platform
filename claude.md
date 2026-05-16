@@ -78,7 +78,7 @@ See `.env.example` for the full list. Required for any feature work:
 - **Phase 0** — Scaffold: ✅ complete
 - **Phase 1** — Data Layer: ✅ complete
 - **Phase 2** — FastAPI Backend: ✅ complete (incl. Gmail OAuth + GmailService)
-- **Phase 3** — LangGraph Agents: ✅ complete (3A Research, 3B Personalization, 3C Reply Classifier, 3D Follow-up)
+- **Phase 3** — LangGraph Agents: ✅ complete (3A Research, 3B Personalization, 3C Reply Classifier, 3D Follow-up — 81 tests passing)
 - **Phase 4** — n8n Workflows: ⬜ not started
 - **Phase 5** — Frontend: ⬜ not started
 - **Phase 6** — Integration Tests: ⬜ not started 

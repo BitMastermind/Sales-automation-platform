@@ -59,7 +59,9 @@ async def trigger_followup(body: LeadTriggerBody, db: AsyncSession = Depends(get
         result = await trigger_followup_iface(body.lead_id, db)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return ok(result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return ok(result.model_dump())
 
 
 @router.get("/leads-needing-followup", dependencies=[Depends(_require_token)])
