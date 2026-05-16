@@ -39,3 +39,10 @@
 **Next:** Run Phase 5B manual verify (golden path + edge cases) in `cd frontend && npm run dev`. If desired, tighten CSV parsing to handle quoted commas.
 **Handoff to:** Claude Code — UI polish / manual test iteration fits CC per routing table.
 **Gotchas:** `npx tsc` bin is broken in this repo’s `node_modules` (expects `typescript/lib/tsc.js` but package has `lib/_tsc.js`); `node node_modules/typescript/lib/_tsc.js --noEmit` works.
+
+## 2026-05-16T06:28Z — Codex
+**Phase:** Repo bootstrap — GitHub push
+**Did:** Added a root `README.md` and committed it. Prepared the repo to push to the GitHub remote provided by the user.
+**Next:** Verify the GitHub repo exists and that credentials (SSH key or HTTPS token) are configured if `git push` prompts/fails.
+**Handoff to:** Codex — repo-wide git/remote setup per routing table.
+**Gotchas:** Repo already had history (`.git` existed); the “first commit” message is just the commit subject, not the repo’s initial commit.
