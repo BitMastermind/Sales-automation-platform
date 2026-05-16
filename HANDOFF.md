@@ -26,16 +26,16 @@
 **Handoff to:** Claude Code — n8n workflow export/config is a structured task well-suited to CC.
 **Gotchas:** Email model uses raw string enum values `"outreach"` / `"followup"` (not a Python Enum class) — interface layer uses string literals. Model ID used: `claude-sonnet-4-6` (latest Sonnet 4.6).
 
+## 2026-05-16T05:54Z — Codex
+**Phase:** Phase 5A — Dashboard Layout + Pages
+**Did:** Implemented the full Next.js 16 App Router shell + 4 pages (`/dashboard`, `/campaigns`, `/campaigns/[id]`, `/settings`) with TanStack Query, shadcn/ui primitives, Recharts charts (explicit-height containers), and a typed API client that unwraps the `{ data, error, meta }` envelope. Added URL-param-driven lead drawer (`?lead=<id>`) and a small client “island” Gmail status pill in the header. `npm run build` passes with zero TypeScript errors.
+**Next:** Run `cd frontend && npm run dev` and complete Phase 5A manual checks (sidebar active state, Gmail pill, dashboard chart height, campaigns → detail nav, lead drawer URL persistence). Then proceed to Phase 5B (campaign creation modal + CSV upload UI).
+**Handoff to:** Claude Code — Phase 5B is UI feature building with tight context per routing table.
+**Gotchas:** shadcn/ui in this repo is the Base UI variant (no `asChild` on `Button` / `DropdownMenuTrigger`). Recharts logs a width/height warning during static prerender, but renders correctly at runtime due to explicit `h-[320px]` containers.
+
 ## 2026-05-16T05:12Z — Codex
 **Phase:** Phase 4 — n8n Workflows
 **Did:** Generated production-ready n8n workflow exports in `n8n-workflows/` (`campaign_launcher.json`, `gmail_reply_monitor.json`, `followup_scheduler.json`) with credential-by-name references and HTTP error routing to Slack. Added `n8n-workflows/CREDENTIALS.md`, appended `Setup Order` to `n8n-workflows/README.md`, and noted export gotchas in `scratchpad.md`.
 **Next:** Run the manual import checks in n8n (Phase 4 verify list) and tweak node parameters if n8n import complains about any schema fields (especially Gmail node field names / simplify output). Then commit the workflow JSON + docs.
 **Handoff to:** Claude Code — Phase 5 frontend work is precision feature building per routing table.
 **Gotchas:** No-Code constraint means `reply_text` uses Gmail node simplified fields (`textPlain` fallback). Some idempotency keys on schedule-triggered internal GET calls use the execution id (no natural `$json.id` available).
-
-## 2026-05-16T04:32Z — Codex
-**Phase:** Phase 3 status check (3A/3B/3C)
-**Did:** Verified Phase 3A/3B/3C implementations exist in repo and located their backend interfaces. Activated `backend/.venv` and ran the three phase test modules; all passed.
-**Next:** Proceed with Phase 3D Follow-up Agent (only remaining Phase 3 stub is `agents/followup_agent.py`).
-**Handoff to:** Claude Code — Phase 3D is single-feature build work per routing table.
-**Gotchas:** `pytest` is not on global PATH; run tests via `source backend/.venv/bin/activate`.
