@@ -30,3 +30,25 @@ That's exactly what this platform automates.
 This platform ingests a list of leads, then runs a **LangGraph agent pipeline** for each lead: web research → company intelligence → hyper-personalized email → send via Gmail → reply classification → follow-up scheduling.
 
 The product bet: **personalization quality beats volume**. One email that references a prospect's recent funding round, their job postings, or a pain point buried in their blog outperforms 100 generic blasts.
+
+---
+
+## 🔄 How It Works
+
+Upload a CSV or connect Google Sheets. The platform processes each lead through a multi-agent pipeline — fully automated, rate-limited, and reply-aware.
+
+```mermaid
+flowchart LR
+    A[📄 CSV / Sheets] --> B[⚙️ FastAPI]
+    B -->|webhook| C[🔁 n8n Pipeline]
+    C -->|per lead| D[🧠 Research Agent]
+    D --> E[✍️ Personalization Agent]
+    E --> F[📧 Gmail Send]
+    F --> G[🔍 Reply Classifier]
+    G --> H[📅 Follow-up Agent]
+
+    style D fill:#1c2e1c,stroke:#3fb950,color:#56d364
+    style E fill:#1c2e1c,stroke:#3fb950,color:#56d364
+    style G fill:#1c2e1c,stroke:#3fb950,color:#56d364
+    style H fill:#1c2e1c,stroke:#3fb950,color:#56d364
+```
