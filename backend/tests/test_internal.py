@@ -122,13 +122,13 @@ async def test_trigger_personalization_returns_400_when_not_researched(async_cli
 
 
 async def test_trigger_followup_valid_token(async_client: AsyncClient):
+    # Token accepted (not 401); lead doesn't exist in test DB so route returns 404.
     resp = await async_client.post(
         "/api/internal/trigger-followup",
         json={"lead_id": ANY_LEAD_ID},
         headers=VALID_HEADERS,
     )
-    assert resp.status_code == 200
-    assert resp.json()["data"]["queued"] is True
+    assert resp.status_code == 404
 
 
 async def test_leads_needing_followup_missing_token_returns_401(async_client: AsyncClient):
