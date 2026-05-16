@@ -12,3 +12,23 @@
 ![Tests](https://img.shields.io/badge/Tests-81%20passing-3fb950?style=flat-square)
 
 Upload a CSV of leads. AI agents research each company, write a personalized email referencing their actual news and strategy, send it via Gmail, classify replies, and schedule follow-ups — automatically.
+
+---
+
+> **The Problem**
+
+## 😤 Cold outreach is broken
+
+Generic *"Hi {FirstName}, I noticed you work at {Company}"* emails get a **~1% reply rate**. Sales teams spend hours manually researching leads just to write emails that still feel templated.
+
+The bottleneck isn't sending — it's the **research + personalization loop** that doesn't scale. Humans can't do deep company research for 500 leads a week.
+
+---
+
+> **The Solution**
+
+## ✨ Let AI agents do the research
+
+This platform ingests a list of leads, then spawns a **LangGraph agent pipeline** for each one: web research → company intelligence → hyper-personalized email → send via Gmail → reply classification → follow-up scheduling.
+
+The product bet: **personalization quality beats volume**. One email that references a prospect's recent funding round, their job postings, or a pain point buried in their blog outperforms 100 generic blasts.
