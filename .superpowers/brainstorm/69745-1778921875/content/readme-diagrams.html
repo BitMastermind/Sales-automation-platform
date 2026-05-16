@@ -1,0 +1,57 @@
+<h2>How should the architecture flowcharts look?</h2>
+<p class="subtitle">GitHub renders both natively — it's a style choice</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="mermaid" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:1.2rem;font-family:monospace;font-size:0.78rem;color:#58a6ff;text-align:left;line-height:1.7;">
+      <span style="color:#8b949e">```mermaid</span><br>
+      <span style="color:#ff7b72">flowchart</span> <span style="color:#ffa657">LR</span><br>
+      &nbsp;&nbsp;A[<span style="color:#a5d6ff">CSV / Sheets</span>] --&gt; B[<span style="color:#a5d6ff">FastAPI</span>]<br>
+      &nbsp;&nbsp;B --&gt; C[<span style="color:#a5d6ff">n8n</span>]<br>
+      &nbsp;&nbsp;C --&gt; D[<span style="color:#a5d6ff">LangGraph</span>]<br>
+      &nbsp;&nbsp;D --&gt; E[<span style="color:#a5d6ff">Gmail ✉️</span>]<br>
+      <span style="color:#8b949e">```</span>
+    </div>
+    <div class="card-body">
+      <h3>Mermaid Diagrams</h3>
+      <p>Renders as clean vector graphics on GitHub. Looks polished and professional. Zoomable, copyable.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="ascii" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:1.2rem;font-family:monospace;font-size:0.78rem;color:#c9d1d9;text-align:left;line-height:1.7;">
+      <span style="color:#8b949e">```</span><br>
+      CSV/Sheets<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;│<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+      ┌─────────────┐<br>
+      │&nbsp;&nbsp;FastAPI&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+      └──────┬──────┘<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│ webhook<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+      ┌─────────────┐<br>
+      │&nbsp;&nbsp;&nbsp;&nbsp;n8n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+      └──────┬──────┘<br>
+      <span style="color:#8b949e">```</span>
+    </div>
+    <div class="card-body">
+      <h3>ASCII Art Diagrams</h3>
+      <p>Works everywhere — terminals, raw GitHub view, emails, docs. Has a "hacker / builder" aesthetic that some love.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="both" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:1.2rem;font-family:monospace;font-size:0.75rem;color:#58a6ff;text-align:left;line-height:1.5;">
+      <span style="color:#ff7b72">Mermaid</span> for system overview<br>
+      <span style="color:#3fb950">+</span><br>
+      <span style="color:#ffa657">ASCII</span> for inline flow steps<br>
+      <span style="color:#3fb950">→</span> Both rendered side by side
+    </div>
+    <div class="card-body">
+      <h3>Mix — Mermaid + ASCII</h3>
+      <p>High-level architecture as Mermaid, inline agent flows as ASCII. Maximally impressive, slightly heavier.</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>README Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 0; }
+
+  .github-frame { max-width: 860px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 2.5rem 0 2rem; border-bottom: 1px solid #21262d; }
+  .hero h1 { font-size: 2.4rem; font-weight: 700; color: #f0f6fc; letter-spacing: -1px; margin-bottom: 0.4rem; }
+  .hero .tagline { font-size: 1.15rem; color: #8b949e; margin-bottom: 1.2rem; }
+  .badges { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-bottom: 1rem; }
+  .badge { display: inline-block; padding: 0.22rem 0.7rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; font-family: monospace; }
+  .badge.py   { background: #1f4e79; color: #58a6ff; border: 1px solid #388bfd40; }
+  .badge.ts   { background: #1a3a5c; color: #79c0ff; border: 1px solid #388bfd40; }
+  .badge.lang { background: #1c2e1c; color: #56d364; border: 1px solid #3fb95040; }
+  .badge.n8n  { background: #2d1f00; color: #f0883e; border: 1px solid #d2900040; }
+  .badge.ai   { background: #2a1f3d; color: #d2a8ff; border: 1px solid #8957e540; }
+  .badge.dock { background: #0d2233; color: #58a6ff; border: 1px solid #388bfd40; }
+  .hero-desc { font-size: 0.95rem; color: #8b949e; max-width: 560px; margin: 0 auto; line-height: 1.6; }
+
+  /* Sections */
+  .section { padding: 1.8rem 0; border-bottom: 1px solid #21262d; }
+  .section h2 { font-size: 1.35rem; font-weight: 600; color: #f0f6fc; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+  .section p { color: #8b949e; line-height: 1.7; font-size: 0.9rem; }
+  .section p + p { margin-top: 0.6rem; }
+
+  /* Mermaid preview */
+  .mermaid-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem 1.4rem; font-family: monospace; font-size: 0.78rem; color: #8b949e; line-height: 1.8; margin-top: 1rem; }
+  .mermaid-block .kw { color: #ff7b72; }
+  .mermaid-block .node { color: #a5d6ff; }
+  .mermaid-block .arrow { color: #ffa657; }
+  .mermaid-block .label { color: #56d364; font-size: 0.7rem; }
+
+  /* Flow render */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
+  .flow-node { background: #161b22; border: 1px solid #388bfd; border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.78rem; color: #79c0ff; white-space: nowrap; }
+  .flow-arrow { color: #ffa657; font-size: 1rem; }
+  .flow-node.agent { border-color: #8957e5; color: #d2a8ff; }
+  .flow-node.db    { border-color: #3fb950; color: #56d364; }
+  .flow-node.ext   { border-color: #d2900040; color: #f0883e; }
+
+  /* Agent cards */
+  .agents-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
+  .agent-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.9rem 1rem; }
+  .agent-card h4 { font-size: 0.85rem; color: #f0f6fc; margin-bottom: 0.3rem; }
+  .agent-card p { font-size: 0.78rem; color: #8b949e; line-height: 1.5; }
+  .agent-card .tag { font-size: 0.65rem; background: #2a1f3d; color: #d2a8ff; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 0.4rem; }
+
+  /* Tech stack */
+  .stack-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 1rem; }
+  .stack-cat { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.75rem; }
+  .stack-cat .cat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #8b949e; margin-bottom: 0.5rem; }
+  .stack-cat ul { list-style: none; }
+  .stack-cat li { font-size: 0.78rem; color: #c9d1d9; line-height: 1.7; }
+  .stack-cat li::before { content: "·"; color: #388bfd; margin-right: 0.4rem; }
+
+  /* Phase tracker */
+  .phases { margin-top: 1rem; }
+  .phase-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.45rem 0; border-bottom: 1px solid #21262d08; font-size: 0.82rem; }
+  .phase-status { width: 18px; text-align: center; }
+  .phase-name { color: #c9d1d9; flex: 1; }
+  .phase-note { color: #8b949e; font-size: 0.75rem; }
+
+  /* Quickstart */
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem 1.2rem; font-family: monospace; font-size: 0.8rem; line-height: 1.8; margin-top: 1rem; }
+  .code-block .comment { color: #8b949e; }
+  .code-block .cmd { color: #c9d1d9; }
+  .code-block .out { color: #56d364; }
+
+  /* Divider label */
+  .section-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: #388bfd; margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="github-frame">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>⚡ AI Sales Outreach</h1>
+    <div class="tagline">Hyper-personalized B2B outreach — researched, written, and sent by AI agents</div>
+    <div class="badges">
+      <span class="badge py">Python 3.11</span>
+      <span class="badge ts">TypeScript</span>
+      <span class="badge lang">LangGraph</span>
+      <span class="badge n8n">n8n</span>
+      <span class="badge ai">Claude + GPT-4</span>
+      <span class="badge dock">Docker</span>
+      <span class="badge py">FastAPI</span>
+      <span class="badge ts">Next.js 14</span>
+    </div>
+    <div class="hero-desc">
+      Upload a CSV of leads. AI agents research each company, write a personalized email referencing their actual news and strategy, send it via Gmail, classify replies, and schedule follow-ups — automatically.
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <div class="section">
+    <div class="section-label">The Problem</div>
+    <h2>😤 Cold outreach is broken</h2>
+    <p>Generic "Hi {FirstName}, I noticed you work at {Company}" emails get a <strong style="color:#f0f6fc">~1% reply rate</strong>. Sales teams spend hours manually researching leads just to write emails that still feel templated.</p>
+    <p>The bottleneck isn't sending — it's the <strong style="color:#f0f6fc">research + personalization loop</strong> that doesn't scale.</p>
+  </div>
+
+  <!-- SOLUTION -->
+  <div class="section">
+    <div class="section-label">The Solution</div>
+    <h2>✨ Let AI agents do the research</h2>
+    <p>This platform ingests a list of leads, then spawns a <strong style="color:#f0f6fc">LangGraph agent pipeline</strong> for each one: web research → company intelligence → hyper-personalized email → compliance check → send → reply watch → follow-up scheduling.</p>
+    <p>The product bet: <strong style="color:#f0f6fc">personalization quality beats volume</strong>. One email that references a prospect's recent funding round outperforms 100 generic blasts.</p>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="section">
+    <div class="section-label">End-to-End Flow</div>
+    <h2>🔄 How It Works</h2>
+    <div class="flow">
+      <div class="flow-node">📄 CSV / Sheets</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">⚙️ FastAPI</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">🔁 n8n Pipeline</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node agent">🧠 Research Agent</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node agent">✍️ Personalization</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node agent">🛡 Compliance</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ext">📧 Gmail Send</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node agent">🔍 Reply Classifier</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node agent">📅 Follow-up Agent</div>
+    </div>
+    <div class="mermaid-block" style="margin-top:1rem">
+      <span style="color:#8b949e">```mermaid  ← renders as a vector diagram on GitHub</span><br>
+      <span class="kw">flowchart</span> LR<br>
+      &nbsp;&nbsp;<span class="node">A[CSV/Sheets]</span> <span class="arrow">--&gt;</span> <span class="node">B[FastAPI]</span> <span class="arrow">--&gt;</span> <span class="node">C[n8n]</span><br>
+      &nbsp;&nbsp;<span class="node">C</span> <span class="arrow">--&gt;|per lead|</span> <span class="node">D[Research Agent]</span><br>
+      &nbsp;&nbsp;<span class="node">D</span> <span class="arrow">--&gt;</span> <span class="node">E[Personalization]</span> <span class="arrow">--&gt;</span> <span class="node">F[Gmail ✉️]</span><br>
+      &nbsp;&nbsp;<span class="node">F</span> <span class="arrow">--&gt;</span> <span class="node">G[Reply Classifier]</span> <span class="arrow">--&gt;</span> <span class="node">H[Follow-up]</span>
+    </div>
+  </div>
+
+  <!-- AGENT ARCHITECTURE -->
+  <div class="section">
+    <div class="section-label">System Architecture</div>
+    <h2>🏗 Three-Plane Architecture</h2>
+    <p>Each layer has a single responsibility and can be swapped independently.</p>
+    <div class="agents-grid" style="grid-template-columns:1fr 1fr 1fr; margin-top:1rem;">
+      <div class="agent-card">
+        <div class="tag">Interaction Plane</div>
+        <h4>Next.js + FastAPI</h4>
+        <p>Dashboard, campaign management, OAuth, webhooks. Where humans and external services enter the system.</p>
+      </div>
+      <div class="agent-card">
+        <div class="tag" style="background:#1c2e1c;color:#56d364">Reasoning Plane</div>
+        <h4>LangGraph Agents</h4>
+        <p>Every LLM call lives here. Research, personalization, reply classification, follow-up strategy.</p>
+      </div>
+      <div class="agent-card">
+        <div class="tag" style="background:#2d1f00;color:#f0883e">Automation Plane</div>
+        <h4>n8n Workflows</h4>
+        <p>Stateless orchestration: Gmail send, Slack notify, CRM sync. No business logic — only HTTP nodes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENTS -->
+  <div class="section">
+    <div class="section-label">LangGraph Agents</div>
+    <h2>🤖 The Agent Pipeline</h2>
+    <div class="agents-grid">
+      <div class="agent-card">
+        <div class="tag">3A · Research</div>
+        <h4>Company Research Agent</h4>
+        <p>Scrapes company website, news, LinkedIn. Extracts funding, strategy signals, pain points into structured JSON.</p>
+      </div>
+      <div class="agent-card">
+        <div class="tag">3B · Personalization</div>
+        <h4>Email Personalization Agent</h4>
+        <p>Generates hyper-personalized outreach using research context. Qdrant vector store for template retrieval.</p>
+      </div>
+      <div class="agent-card">
+        <div class="tag">3C · Reply</div>
+        <h4>Reply Classifier Agent</h4>
+        <p>Classifies inbound replies: interested / not-interested / out-of-office / meeting-request. Routes to CRM.</p>
+      </div>
+      <div class="agent-card">
+        <div class="tag">3D · Follow-up</div>
+        <h4>Follow-up Strategy Agent</h4>
+        <p>Selects follow-up timing and tone based on prior thread. Conditional LangGraph graph with strategy nodes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="section">
+    <div class="section-label">Tech Stack</div>
+    <h2>🛠 Built With</h2>
+    <div class="stack-grid">
+      <div class="stack-cat">
+        <div class="cat-label">Frontend</div>
+        <ul>
+          <li>Next.js 14 (App Router)</li>
+          <li>TypeScript</li>
+          <li>Tailwind CSS</li>
+          <li>shadcn/ui</li>
+          <li>TanStack Query</li>
+        </ul>
+      </div>
+      <div class="stack-cat">
+        <div class="cat-label">Backend</div>
+        <ul>
+          <li>FastAPI + Python 3.11</li>
+          <li>SQLAlchemy 2 (async)</li>
+          <li>Alembic migrations</li>
+          <li>Pydantic v2</li>
+          <li>PostgreSQL 15</li>
+        </ul>
+      </div>
+      <div class="stack-cat">
+        <div class="cat-label">AI / Agents</div>
+        <ul>
+          <li>LangGraph + LangChain</li>
+          <li>Claude (Anthropic)</li>
+          <li>GPT-4 (OpenAI)</li>
+          <li>Qdrant (vectors)</li>
+          <li>Tavily / Firecrawl</li>
+        </ul>
+      </div>
+      <div class="stack-cat">
+        <div class="cat-label">Automation</div>
+        <ul>
+          <li>n8n (self-hosted)</li>
+          <li>Gmail API (OAuth)</li>
+          <li>Redis (rate limits)</li>
+          <li>HubSpot CRM</li>
+          <li>Slack</li>
+        </ul>
+      </div>
+      <div class="stack-cat">
+        <div class="cat-label">Infrastructure</div>
+        <ul>
+          <li>Docker Compose</li>
+          <li>nginx reverse proxy</li>
+          <li>Makefile targets</li>
+          <li>Pytest + Jest</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUILD STATUS -->
+  <div class="section">
+    <div class="section-label">Build Status</div>
+    <h2>📊 Project Phases</h2>
+    <div class="phases">
+      <div class="phase-row"><span class="phase-status">✅</span><span class="phase-name">Phase 0 — Scaffold</span><span class="phase-note">Monorepo, Docker, CI</span></div>
+      <div class="phase-row"><span class="phase-status">✅</span><span class="phase-name">Phase 1 — Data Layer</span><span class="phase-note">Postgres schema, Qdrant, migrations</span></div>
+      <div class="phase-row"><span class="phase-status">✅</span><span class="phase-name">Phase 2 — FastAPI Backend</span><span class="phase-note">REST API, Gmail OAuth, GmailService</span></div>
+      <div class="phase-row"><span class="phase-status">✅</span><span class="phase-name">Phase 3 — LangGraph Agents</span><span class="phase-note">4 agents · 81 tests passing</span></div>
+      <div class="phase-row"><span class="phase-status">⬜</span><span class="phase-name">Phase 4 — n8n Workflows</span><span class="phase-note">Pipeline, reply monitor, follow-up scheduler</span></div>
+      <div class="phase-row"><span class="phase-status">⬜</span><span class="phase-name">Phase 5 — Frontend</span><span class="phase-note">Next.js dashboard, campaign UI</span></div>
+      <div class="phase-row"><span class="phase-status">⬜</span><span class="phase-name">Phase 6 — Integration Tests</span><span class="phase-note">End-to-end, real Postgres container</span></div>
+      <div class="phase-row"><span class="phase-status">⬜</span><span class="phase-name">Phase 7 — Deployment</span><span class="phase-note">Production Docker Compose, nginx</span></div>
+    </div>
+  </div>
+
+  <!-- QUICKSTART -->
+  <div class="section" style="border-bottom:none">
+    <div class="section-label">Get Started</div>
+    <h2>⚡ Quickstart</h2>
+    <div class="code-block">
+      <span class="comment"># Clone and configure</span><br>
+      <span class="cmd">git clone https://github.com/you/ai-sales-outreach</span><br>
+      <span class="cmd">cp .env.example .env &amp;&amp; <span style="color:#8b949e"># fill in API keys</span></span><br><br>
+      <span class="comment"># Boot the full stack</span><br>
+      <span class="cmd">make dev</span><br><br>
+      <span class="comment"># Seed demo data</span><br>
+      <span class="cmd">make seed</span><br><br>
+      <span class="out"># → Frontend:  http://localhost:3000</span><br>
+      <span class="out"># → API docs:   http://localhost:8000/docs</span><br>
+      <span class="out"># → n8n:        http://localhost:5678</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

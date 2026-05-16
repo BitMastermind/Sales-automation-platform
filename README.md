@@ -17,7 +17,7 @@ Upload a CSV of leads. AI agents research each company, write a personalized ema
 
 ## 😤 Cold outreach is broken
 
-Generic *"Hi {FirstName}, I noticed you work at {Company}"* emails get a **~1% reply rate**. Sales teams spend hours manually researching leads just to write emails that still feel templated.
+Generic _"Hi {FirstName}, I noticed you work at {Company}"_ emails get a **~1% reply rate**. Sales teams spend hours manually researching leads just to write emails that still feel templated.
 
 The bottleneck isn't sending — it's the **research + personalization loop** that doesn't scale. Humans can't do deep company research at scale.
 
@@ -89,11 +89,11 @@ flowchart TB
     style Automation fill:#2d1600,stroke:#d29000,color:#f0883e
 ```
 
-| Plane | Layer | Responsibility |
-|---|---|---|
-| 🖥 Interaction | Next.js + FastAPI | Human interface, auth, webhooks, data persistence |
-| 🧠 Reasoning | LangGraph + Qdrant | Every LLM call — research, writing, classification |
-| ⚙️ Automation | n8n | Stateless orchestration — Gmail, Slack, CRM. No business logic |
+| Plane          | Layer              | Responsibility                                                 |
+| -------------- | ------------------ | -------------------------------------------------------------- |
+| 🖥 Interaction | Next.js + FastAPI  | Human interface, auth, webhooks, data persistence              |
+| 🧠 Reasoning   | LangGraph + Qdrant | Every LLM call — research, writing, classification             |
+| ⚙️ Automation  | n8n                | Stateless orchestration — Gmail, Slack, CRM. No business logic |
 
 ---
 
@@ -101,12 +101,12 @@ flowchart TB
 
 Four LangGraph agents form the reasoning core. Each runs as an isolated graph with typed state, conditional edges, and structured JSON output.
 
-| Agent | Phase | Responsibility | Key Output |
-|---|---|---|---|
-| 🧠 **Research Agent** | 3A | Scrapes company website, news, LinkedIn. Extracts funding signals, pain points, strategy. | `CompanyIntelligence` JSON |
-| ✍️ **Personalization Agent** | 3B | Generates hyper-personalized outreach using research + Qdrant template retrieval. Includes compliance check. | Draft email + subject line |
-| 🔍 **Reply Classifier** | 3C | Classifies inbound Gmail replies: `interested` / `not_interested` / `out_of_office` / `meeting_request`. | Classification + CRM sync |
-| 📅 **Follow-up Agent** | 3D | Selects follow-up timing and tone based on prior thread. Conditional graph: `select_strategy → generate_followup`. | Follow-up email draft |
+| Agent                        | Phase | Responsibility                                                                                                     | Key Output                 |
+| ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| 🧠 **Research Agent**        | 3A    | Scrapes company website, news, LinkedIn. Extracts funding signals, pain points, strategy.                          | `CompanyIntelligence` JSON |
+| ✍️ **Personalization Agent** | 3B    | Generates hyper-personalized outreach using research + Qdrant template retrieval. Includes compliance check.       | Draft email + subject line |
+| 🔍 **Reply Classifier**      | 3C    | Classifies inbound Gmail replies: `interested` / `not_interested` / `out_of_office` / `meeting_request`.           | Classification + CRM sync  |
+| 📅 **Follow-up Agent**       | 3D    | Selects follow-up timing and tone based on prior thread. Conditional graph: `select_strategy → generate_followup`. | Follow-up email draft      |
 
 > **81 tests passing** across all four agents as of Phase 3.
 
@@ -114,29 +114,14 @@ Four LangGraph agents form the reasoning core. Each runs as an isolated graph wi
 
 ## 🛠 Built With
 
-| Category | Technologies |
-|---|---|
-| **Frontend** | Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · TanStack Query |
-| **Backend** | FastAPI · Python 3.11 · SQLAlchemy 2.0 (async) · Alembic · Pydantic v2 |
-| **Database** | PostgreSQL 15 · Qdrant (vector search) · Redis (rate limits + queues) |
-| **AI / Agents** | LangGraph · LangChain · Claude (Anthropic) · GPT-4 (OpenAI) · Tavily · Firecrawl |
-| **Automation** | n8n (self-hosted) · Gmail API (OAuth2) · HubSpot CRM · Slack |
-| **Infrastructure** | Docker Compose · nginx reverse proxy · Makefile · Pytest + Jest |
-
----
-
-## 📊 Project Phases
-
-| Phase | Status | Description |
-|---|---|---|
-| 0 — Scaffold | ✅ Complete | Monorepo, Docker Compose, Makefile, CI structure |
-| 1 — Data Layer | ✅ Complete | PostgreSQL schema, Qdrant collections, Alembic migrations |
-| 2 — FastAPI Backend | ✅ Complete | REST API, Gmail OAuth, GmailService, all endpoints |
-| 3 — LangGraph Agents | ✅ Complete | Research, Personalization, Reply Classifier, Follow-up · **81 tests** |
-| 4 — n8n Workflows | ⬜ Next | Pipeline launcher, reply monitor, follow-up scheduler |
-| 5 — Frontend | ⬜ Planned | Next.js dashboard, campaign UI, lead management |
-| 6 — Integration Tests | ⬜ Planned | End-to-end with real Postgres test container |
-| 7 — Deployment | ⬜ Planned | Production Docker Compose, nginx, env hardening |
+| Category           | Technologies                                                                     |
+| ------------------ | -------------------------------------------------------------------------------- |
+| **Frontend**       | Next.js 14 (App Router) · TypeScript · Tailwind CSS · shadcn/ui · TanStack Query |
+| **Backend**        | FastAPI · Python 3.11 · SQLAlchemy 2.0 (async) · Alembic · Pydantic v2           |
+| **Database**       | PostgreSQL 15 · Qdrant (vector search) · Redis (rate limits + queues)            |
+| **AI / Agents**    | LangGraph · LangChain · Claude (Anthropic) · GPT-4 (OpenAI) · Tavily · Firecrawl |
+| **Automation**     | n8n (self-hosted) · Gmail API (OAuth2) · HubSpot CRM · Slack                     |
+| **Infrastructure** | Docker Compose · nginx reverse proxy · Makefile · Pytest + Jest                  |
 
 ---
 
@@ -157,11 +142,11 @@ make dev
 make seed
 ```
 
-| Service | URL |
-|---|---|
-| Frontend Dashboard | http://localhost:3000 |
-| FastAPI (Swagger) | http://localhost:8000/docs |
-| n8n Workflow Editor | http://localhost:5678 |
+| Service             | URL                        |
+| ------------------- | -------------------------- |
+| Frontend Dashboard  | http://localhost:3000      |
+| FastAPI (Swagger)   | http://localhost:8000/docs |
+| n8n Workflow Editor | http://localhost:5678      |
 
 > See `.env.example` for all required API keys: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GMAIL_CLIENT_ID`, `TAVILY_API_KEY`, and more.
 
