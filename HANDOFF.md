@@ -26,23 +26,16 @@
 **Handoff to:** Claude Code — n8n workflow export/config is a structured task well-suited to CC.
 **Gotchas:** Email model uses raw string enum values `"outreach"` / `"followup"` (not a Python Enum class) — interface layer uses string literals. Model ID used: `claude-sonnet-4-6` (latest Sonnet 4.6).
 
-## 2026-05-16T05:54Z — Codex
-**Phase:** Phase 5A — Dashboard Layout + Pages
-**Did:** Implemented the full Next.js 16 App Router shell + 4 pages (`/dashboard`, `/campaigns`, `/campaigns/[id]`, `/settings`) with TanStack Query, shadcn/ui primitives, Recharts charts (explicit-height containers), and a typed API client that unwraps the `{ data, error, meta }` envelope. Added URL-param-driven lead drawer (`?lead=<id>`) and a small client “island” Gmail status pill in the header. `npm run build` passes with zero TypeScript errors.
-**Next:** Run `cd frontend && npm run dev` and complete Phase 5A manual checks (sidebar active state, Gmail pill, dashboard chart height, campaigns → detail nav, lead drawer URL persistence). Then proceed to Phase 5B (campaign creation modal + CSV upload UI).
-**Handoff to:** Claude Code — Phase 5B is UI feature building with tight context per routing table.
-**Gotchas:** shadcn/ui in this repo is the Base UI variant (no `asChild` on `Button` / `DropdownMenuTrigger`). Recharts logs a width/height warning during static prerender, but renders correctly at runtime due to explicit `h-[320px]` containers.
-
-## 2026-05-16T06:06Z — Codex
-**Phase:** Phase 5B — Campaign Creation Modal
-**Did:** Added a 3-step campaign creation modal with a typed `useState` state machine: Step 1 basics (word counter + tone segmented control), Step 2 CSV upload (react-dropzone, column auto-detect + mapping, validation preview), Step 3 review (Gmail status + sequential launch flow). Wired “New Campaign” to open the modal and navigate to `/campaigns/[id]` on success.
-**Next:** Run Phase 5B manual verify (golden path + edge cases) in `cd frontend && npm run dev`. If desired, tighten CSV parsing to handle quoted commas.
-**Handoff to:** Claude Code — UI polish / manual test iteration fits CC per routing table.
-**Gotchas:** `npx tsc` bin is broken in this repo’s `node_modules` (expects `typescript/lib/tsc.js` but package has `lib/_tsc.js`); `node node_modules/typescript/lib/_tsc.js --noEmit` works.
-
 ## 2026-05-16T06:28Z — Codex
 **Phase:** Repo bootstrap — GitHub push
 **Did:** Added a root `README.md` and committed it. Prepared the repo to push to the GitHub remote provided by the user.
 **Next:** Verify the GitHub repo exists and that credentials (SSH key or HTTPS token) are configured if `git push` prompts/fails.
 **Handoff to:** Codex — repo-wide git/remote setup per routing table.
 **Gotchas:** Repo already had history (`.git` existed); the “first commit” message is just the commit subject, not the repo’s initial commit.
+
+## 2026-05-16T06:47Z — Codex
+**Phase:** Local manual test boot
+**Did:** Fixed Docker dev boot by switching Compose build contexts to repo-root (so local `agents/` installs), updating `backend/Dockerfile` + `frontend/Dockerfile`, and replacing `curl`-based healthchecks (images lacked `curl`). Added `backend/scripts/seed.py` to generate a demo campaign + leads; stack now boots and API responds.
+**Next:** Manual test the UI at `http://localhost:3000` and verify the seeded “Demo Campaign” appears; optionally add real Gmail OAuth keys to test integrations.
+**Handoff to:** Claude Code — product polish / UI iteration per routing table.
+**Gotchas:** Compose previously marked services unhealthy because `curl` wasn’t present in qdrant/n8n images; healthchecks now use port-level checks.
