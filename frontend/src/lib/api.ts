@@ -37,14 +37,16 @@ async function request<T>(
     },
   })
 
-  const json = (await res.json().catch(() => null)) as
-    | ApiEnvelope<T>
-    | { detail?: ApiEnvelope<T> }
-    | null
+  const json = (await res.json().catch(() => null)) as ApiEnvelope<T> | null
 
-  const envelope = (json && "detail" in json ? json.detail : json) as
-    | ApiEnvelope<T>
-    | null
+  if (!res.ok) {
+    throw new ApiError(
+      "HTTP_ERROR",
+      `API error ${res.status}`,
+    )
+  }
+
+  const envelope = json as ApiEnvelope<T> | null
 
   if (!envelope) {
     throw new ApiError(
