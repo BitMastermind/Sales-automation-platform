@@ -46,3 +46,15 @@ Thumbs.db
 
 # Docker
 *.log
+
+# AI tooling / session artifacts
+.superpowers/
+docs/
+claude.md
+CLAUDE.md
+AGENTS.md
+HANDOFF.md
+PROJECT_OVERVIEW.md
+scratchpad.md
+**/CLAUDE.md
+**/AGENTS.md
