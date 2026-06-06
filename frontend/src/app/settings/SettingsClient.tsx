@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils"
 type GmailStatus = { connected: boolean; email: string | null }
 
 async function fetchGmailStatus(): Promise<GmailStatus> {
+  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") {
+    return { connected: true, email: "ashitverma56@gmail.com" }
+  }
   const base = process.env.NEXT_PUBLIC_API_BASE
   if (!base) throw new Error("Missing env var: NEXT_PUBLIC_API_BASE")
   const res = await fetch(`${base.replace(/\/+$/, "")}/api/auth/gmail/status`)

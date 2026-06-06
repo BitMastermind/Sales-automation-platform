@@ -97,3 +97,28 @@ export interface UploadResult {
   errors: UploadErrorRow[]
 }
 
+export type TemplateType = "intro" | "followup" | "re_engagement"
+
+export interface Template {
+  id: string
+  name: string
+  type: TemplateType
+  subject: string
+  body: string
+  tags: string[]
+  used_count: number
+  created_at: string
+}
+
+export type IntegrationStatus = "connected" | "disconnected" | "coming_soon"
+
+export interface Integration {
+  id: string
+  name: string
+  description: string
+  category: "email" | "crm" | "enrichment" | "automation"
+  status: IntegrationStatus
+  connected_email?: string | null
+  connected_at?: string | null
+}
+

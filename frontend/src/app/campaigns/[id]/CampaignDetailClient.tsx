@@ -128,6 +128,15 @@ export default function CampaignDetailClient({ campaignId }: { campaignId: strin
     ]
   }, [stats])
 
+  if (campaignQ.isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-slate-500 gap-2">
+        <p className="text-base font-medium">Campaign not found</p>
+        <p className="text-sm">This campaign may have been deleted or the link is incorrect.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
